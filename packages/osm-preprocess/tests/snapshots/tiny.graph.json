@@ -1,0 +1,415 @@
+{
+  "meta": {
+    "bbox": {
+      "minLon": 77.619,
+      "minLat": 12.929,
+      "maxLon": 77.631,
+      "maxLat": 12.946
+    },
+    "projection": "webMercator",
+    "generatedAt": "2026-06-12T00:00:00.000Z",
+    "sourceHash": "081f13a62ed1809ace521c3e6abd49562082bfae004f674775db1f9d76220002",
+    "scriptVersion": "0.0.0"
+  },
+  "edges": [
+    {
+      "id": 0,
+      "fromJunction": 1,
+      "toJunction": 2,
+      "geometry": [
+        {
+          "x": 8640618.875373896,
+          "y": 1451736.0619912075
+        },
+        {
+          "x": 8641175.472827861,
+          "y": 1452307.1453149433
+        }
+      ],
+      "lengthM": 797.4565119235308,
+      "lanes": 3,
+      "roadClass": "primary",
+      "oneway": false
+    },
+    {
+      "id": 1,
+      "fromJunction": 2,
+      "toJunction": 1,
+      "geometry": [
+        {
+          "x": 8641175.472827861,
+          "y": 1452307.1453149433
+        },
+        {
+          "x": 8640618.875373896,
+          "y": 1451736.0619912075
+        }
+      ],
+      "lengthM": 797.4565119235308,
+      "lanes": 3,
+      "roadClass": "primary",
+      "oneway": false
+    },
+    {
+      "id": 2,
+      "fromJunction": 2,
+      "toJunction": 4,
+      "geometry": [
+        {
+          "x": 8641175.472827861,
+          "y": 1452307.1453149433
+        },
+        {
+          "x": 8641732.070281826,
+          "y": 1452878.2400849033
+        }
+      ],
+      "lengthM": 797.4647089595171,
+      "lanes": 3,
+      "roadClass": "primary",
+      "oneway": false
+    },
+    {
+      "id": 3,
+      "fromJunction": 4,
+      "toJunction": 2,
+      "geometry": [
+        {
+          "x": 8641732.070281826,
+          "y": 1452878.2400849033
+        },
+        {
+          "x": 8641175.472827861,
+          "y": 1452307.1453149433
+        }
+      ],
+      "lengthM": 797.4647089595171,
+      "lanes": 3,
+      "roadClass": "primary",
+      "oneway": false
+    },
+    {
+      "id": 4,
+      "fromJunction": 2,
+      "toJunction": 3,
+      "geometry": [
+        {
+          "x": 8641175.472827861,
+          "y": 1452307.1453149433
+        },
+        {
+          "x": 8641175.472827861,
+          "y": 1452878.2400849033
+        }
+      ],
+      "lengthM": 571.0947699600365,
+      "lanes": 3,
+      "roadClass": "secondary",
+      "oneway": true
+    },
+    {
+      "id": 5,
+      "fromJunction": 3,
+      "toJunction": 5,
+      "geometry": [
+        {
+          "x": 8641175.472827861,
+          "y": 1452878.2400849033
+        },
+        {
+          "x": 8641175.472827861,
+          "y": 1453449.346305895
+        }
+      ],
+      "lengthM": 571.1062209915835,
+      "lanes": 3,
+      "roadClass": "secondary",
+      "oneway": true
+    },
+    {
+      "id": 6,
+      "fromJunction": 6,
+      "toJunction": 3,
+      "geometry": [
+        {
+          "x": 8640618.875373896,
+          "y": 1452878.2400849033
+        },
+        {
+          "x": 8641175.472827861,
+          "y": 1452878.2400849033
+        }
+      ],
+      "lengthM": 556.5974539648741,
+      "lanes": 1,
+      "roadClass": "residential",
+      "oneway": false
+    },
+    {
+      "id": 7,
+      "fromJunction": 3,
+      "toJunction": 6,
+      "geometry": [
+        {
+          "x": 8641175.472827861,
+          "y": 1452878.2400849033
+        },
+        {
+          "x": 8640618.875373896,
+          "y": 1452878.2400849033
+        }
+      ],
+      "lengthM": 556.5974539648741,
+      "lanes": 1,
+      "roadClass": "residential",
+      "oneway": false
+    }
+  ],
+  "junctions": [
+    {
+      "id": 2,
+      "kind": "priority",
+      "lon": 77.625,
+      "lat": 12.935,
+      "position": {
+        "x": 8641175.472827861,
+        "y": 1452307.1453149433
+      },
+      "incomingEdges": [
+        0,
+        3
+      ],
+      "outgoingEdges": [
+        1,
+        2,
+        4
+      ],
+      "connections": [
+        {
+          "fromEdge": 0,
+          "fromLane": 0,
+          "toEdge": 2,
+          "toLane": 0
+        },
+        {
+          "fromEdge": 0,
+          "fromLane": 1,
+          "toEdge": 2,
+          "toLane": 1
+        },
+        {
+          "fromEdge": 0,
+          "fromLane": 2,
+          "toEdge": 2,
+          "toLane": 2
+        },
+        {
+          "fromEdge": 0,
+          "fromLane": 0,
+          "toEdge": 4,
+          "toLane": 0
+        },
+        {
+          "fromEdge": 0,
+          "fromLane": 1,
+          "toEdge": 4,
+          "toLane": 1
+        },
+        {
+          "fromEdge": 0,
+          "fromLane": 2,
+          "toEdge": 4,
+          "toLane": 2
+        },
+        {
+          "fromEdge": 3,
+          "fromLane": 0,
+          "toEdge": 1,
+          "toLane": 0
+        },
+        {
+          "fromEdge": 3,
+          "fromLane": 1,
+          "toEdge": 1,
+          "toLane": 1
+        },
+        {
+          "fromEdge": 3,
+          "fromLane": 2,
+          "toEdge": 1,
+          "toLane": 2
+        },
+        {
+          "fromEdge": 3,
+          "fromLane": 0,
+          "toEdge": 4,
+          "toLane": 0
+        },
+        {
+          "fromEdge": 3,
+          "fromLane": 1,
+          "toEdge": 4,
+          "toLane": 1
+        },
+        {
+          "fromEdge": 3,
+          "fromLane": 2,
+          "toEdge": 4,
+          "toLane": 2
+        }
+      ],
+      "priorityEdges": [
+        0,
+        3
+      ]
+    },
+    {
+      "id": 3,
+      "kind": "signalled",
+      "lon": 77.625,
+      "lat": 12.94,
+      "position": {
+        "x": 8641175.472827861,
+        "y": 1452878.2400849033
+      },
+      "incomingEdges": [
+        4,
+        6
+      ],
+      "outgoingEdges": [
+        5,
+        7
+      ],
+      "connections": [
+        {
+          "fromEdge": 4,
+          "fromLane": 0,
+          "toEdge": 5,
+          "toLane": 0
+        },
+        {
+          "fromEdge": 4,
+          "fromLane": 1,
+          "toEdge": 5,
+          "toLane": 1
+        },
+        {
+          "fromEdge": 4,
+          "fromLane": 2,
+          "toEdge": 5,
+          "toLane": 2
+        },
+        {
+          "fromEdge": 4,
+          "fromLane": 0,
+          "toEdge": 7,
+          "toLane": 0
+        },
+        {
+          "fromEdge": 6,
+          "fromLane": 0,
+          "toEdge": 5,
+          "toLane": 0
+        }
+      ],
+      "defaultSignalPlan": {
+        "cycleSec": 60,
+        "phases": [
+          {
+            "greenIncomingEdges": [
+              4
+            ],
+            "durationSec": 30
+          },
+          {
+            "greenIncomingEdges": [
+              6
+            ],
+            "durationSec": 30
+          }
+        ]
+      }
+    },
+    {
+      "id": 1,
+      "kind": "priority",
+      "lon": 77.62,
+      "lat": 12.93,
+      "position": {
+        "x": 8640618.875373896,
+        "y": 1451736.0619912075
+      },
+      "incomingEdges": [
+        1
+      ],
+      "outgoingEdges": [
+        0
+      ],
+      "connections": [],
+      "priorityEdges": [
+        1
+      ]
+    },
+    {
+      "id": 4,
+      "kind": "priority",
+      "lon": 77.63,
+      "lat": 12.94,
+      "position": {
+        "x": 8641732.070281826,
+        "y": 1452878.2400849033
+      },
+      "incomingEdges": [
+        2
+      ],
+      "outgoingEdges": [
+        3
+      ],
+      "connections": [],
+      "priorityEdges": [
+        2
+      ]
+    },
+    {
+      "id": 5,
+      "kind": "priority",
+      "lon": 77.625,
+      "lat": 12.945,
+      "position": {
+        "x": 8641175.472827861,
+        "y": 1453449.346305895
+      },
+      "incomingEdges": [
+        5
+      ],
+      "outgoingEdges": [],
+      "connections": [],
+      "priorityEdges": [
+        5
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "priority",
+      "lon": 77.62,
+      "lat": 12.94,
+      "position": {
+        "x": 8640618.875373896,
+        "y": 1452878.2400849033
+      },
+      "incomingEdges": [
+        7
+      ],
+      "outgoingEdges": [
+        6
+      ],
+      "connections": [],
+      "priorityEdges": [
+        7
+      ]
+    }
+  ],
+  "boundaryEdges": [
+    5
+  ]
+}
