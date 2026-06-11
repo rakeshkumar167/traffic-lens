@@ -20,11 +20,19 @@ interface OsmReadWay {
   tags?: Record<string, string>;
 }
 
-// Parse an OSM .osm (XML) file. Returns all nodes (since drivable ways
+function detectFormat(filePath: string): 'xml' | 'pbf' {
+  const lower = filePath.toLowerCase();
+  if (lower.endsWith('.pbf')) return 'pbf';
+  if (lower.endsWith('.osm') || lower.endsWith('.xml')) return 'xml';
+  throw new Error(`Unsupported OSM file extension: ${filePath}`);
+}
+
+// Parse an OSM file (XML or PBF format). Returns all nodes (since drivable ways
 // reference them by id) but filters ways down to the drivable subset.
-// Note: format must be supplied as 'xml' because osm-read only auto-detects
-// '.xml' and '.pbf' extensions; '.osm' is not auto-recognised.
+// Detects format automatically from file extension (.osm/.xml → XML, .pbf → PBF).
 export async function parseOsmFile(filePath: string): Promise<ParsedOsm> {
+  const format = detectFormat(filePath);
+
   if (!existsSync(filePath)) {
     throw new Error(`OSM input file not found: ${filePath}`);
   }
@@ -35,7 +43,7 @@ export async function parseOsmFile(filePath: string): Promise<ParsedOsm> {
   await new Promise<void>((resolve, reject) => {
     osmread.parse({
       filePath,
-      format: 'xml',
+      format,
       node: (n: OsmReadNode) => {
         nodes.set(Number(n.id), {
           id: Number(n.id),

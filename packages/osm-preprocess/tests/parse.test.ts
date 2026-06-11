@@ -32,4 +32,10 @@ describe('parseOsmFile (tiny.osm fixture)', () => {
   it('throws if the file does not exist', async () => {
     await expect(parseOsmFile('/no/such/file.osm')).rejects.toThrow();
   });
+
+  it('throws on an unsupported extension', async () => {
+    await expect(parseOsmFile('/tmp/whatever.txt')).rejects.toThrow(
+      /Unsupported OSM file extension/,
+    );
+  });
 });
