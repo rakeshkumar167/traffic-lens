@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="hand-authored">
+  <bounds minlat="12.929" minlon="77.619" maxlat="12.946" maxlon="77.631"/>
+
+  <node id="1" lat="12.930" lon="77.620"/>
+  <node id="2" lat="12.935" lon="77.625"/>
+  <node id="3" lat="12.940" lon="77.625">
+    <tag k="highway" v="traffic_signals"/>
+  </node>
+  <node id="4" lat="12.940" lon="77.630"/>
+  <node id="5" lat="12.945" lon="77.625"/>
+  <node id="6" lat="12.940" lon="77.620"/>
+
+  <way id="100">
+    <nd ref="1"/>
+    <nd ref="2"/>
+    <nd ref="4"/>
+    <tag k="highway" v="primary"/>
+  </way>
+  <way id="101">
+    <nd ref="2"/>
+    <nd ref="3"/>
+    <nd ref="5"/>
+    <tag k="highway" v="secondary"/>
+    <tag k="oneway" v="yes"/>
+    <tag k="lanes" v="3"/>
+  </way>
+  <way id="102">
+    <nd ref="6"/>
+    <nd ref="3"/>
+    <tag k="highway" v="residential"/>
+  </way>
+  <way id="103">
+    <nd ref="1"/>
+    <nd ref="6"/>
+    <tag k="highway" v="footway"/>
+  </way>
+</osm>
