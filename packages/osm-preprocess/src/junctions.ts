@@ -33,7 +33,9 @@ export function buildJunctions(
   const junctions: Junction[] = [];
   for (const nodeId of junctionNodeIds) {
     const node = parsed.nodes.get(nodeId);
-    if (!node) continue;
+    if (!node) {
+      throw new Error(`Junction node ${nodeId} not found in parsed nodes`);
+    }
     const incomingEdges = incomingByJunction.get(nodeId) ?? [];
     const outgoingEdges = outgoingByJunction.get(nodeId) ?? [];
     const connections = buildConnectionTable(incomingEdges, outgoingEdges, edgeById);

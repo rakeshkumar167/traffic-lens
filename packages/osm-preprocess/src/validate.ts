@@ -3,6 +3,7 @@ import type { RoadGraph } from '@traffic-lens/shared';
 export function validateRoadGraph(graph: RoadGraph): void {
   const errors: string[] = [];
   const junctionIds = new Set(graph.junctions.map((j) => j.id));
+  const edgeIds = new Set(graph.edges.map((e) => e.id));
 
   for (const e of graph.edges) {
     if (e.lengthM <= 0 || !Number.isFinite(e.lengthM)) {
@@ -22,6 +23,12 @@ export function validateRoadGraph(graph: RoadGraph): void {
   for (const j of graph.junctions) {
     if (j.kind === 'signalled' && j.incomingEdges.length === 0) {
       errors.push(`Signal junction ${j.id} has zero incoming edges`);
+    }
+  }
+
+  for (const boundaryEdgeId of graph.boundaryEdges) {
+    if (!edgeIds.has(boundaryEdgeId)) {
+      errors.push(`boundaryEdges references missing edge ${boundaryEdgeId}`);
     }
   }
 

@@ -95,4 +95,13 @@ describe('validateRoadGraph', () => {
     });
     expect(() => validateRoadGraph(g)).toThrow(/not weakly connected/i);
   });
+
+  it('rejects a boundaryEdges entry referencing a missing edge', () => {
+    const g = makeGraph({
+      edges: [eg(0, 1, 2)],
+      junctions: [pjJ(1, [], [0]), pjJ(2, [0], [])],
+      boundaryEdges: [0, 99], // edge 99 does not exist
+    });
+    expect(() => validateRoadGraph(g)).toThrow(/boundaryEdges.*missing edge 99/i);
+  });
 });
