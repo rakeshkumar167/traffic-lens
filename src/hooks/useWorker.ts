@@ -29,7 +29,7 @@ export function useWorker({ graph, demand, sab }: UseWorkerArgs): WorkerHandle {
   useEffect(() => {
     if (!graph || !demand || !sab) return;
 
-    const worker = new SimWorker({ type: 'module' });
+    const worker = new SimWorker({ type: 'module' } as WorkerOptions);
     workerRef.current = worker;
     setReady(false);
     setError(null);
