@@ -62,4 +62,32 @@ describe('buildEdges (tiny.osm fixture)', () => {
       expect(reverseLength).toBeCloseTo(e.lengthM, 6);
     }
   });
+
+  it('promotes mid-way traffic-signal nodes to junctions', async () => {
+    // Build a minimal in-memory fixture where a single way (no other way
+    // shares any node) contains a mid-way signal node. The signal node must
+    // become a junction so the way splits there.
+    const nodes = new Map([
+      [10, { id: 10, lon: 77.62, lat: 12.93, tags: {} }],
+      [11, { id: 11, lon: 77.62, lat: 12.935,
+             tags: { highway: 'traffic_signals' } }],
+      [12, { id: 12, lon: 77.62, lat: 12.94, tags: {} }],
+    ]);
+    const drivableWays = [{
+      id: 200,
+      nodeRefs: [10, 11, 12],
+      tags: { highway: 'primary' },
+    }];
+    const { edges } = buildEdges({ nodes, drivableWays });
+    // The way is bidirectional + has 1 internal junction (node 11), so it
+    // produces 2 segments × 2 directions = 4 directed edges.
+    expect(edges.length).toBe(4);
+    // Every edge endpoint set should include node 11 (the signal).
+    const endpoints = new Set<number>();
+    for (const e of edges) {
+      endpoints.add(e.fromJunction);
+      endpoints.add(e.toJunction);
+    }
+    expect(endpoints.has(11)).toBe(true);
+  });
 });

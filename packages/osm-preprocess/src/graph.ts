@@ -18,7 +18,7 @@ export interface BuildEdgesResult {
 }
 
 export function buildEdges(parsed: ParsedOsm): BuildEdgesResult {
-  const junctionNodeIds = findJunctionNodes(parsed.drivableWays);
+  const junctionNodeIds = findJunctionNodes(parsed.drivableWays, parsed.nodes);
   let nextEdgeId: EdgeId = 0;
   const edges: Edge[] = [];
 
@@ -69,10 +69,12 @@ export function buildEdges(parsed: ParsedOsm): BuildEdgesResult {
   return { edges, junctionNodeIds };
 }
 
-function findJunctionNodes(ways: readonly OsmWay[]): Set<number> {
+function findJunctionNodes(
+  ways: readonly OsmWay[],
+  nodes: ReadonlyMap<number, OsmNode>,
+): Set<number> {
   const degree = new Map<number, number>();
   for (const way of ways) {
-    // Way endpoints always count as junction candidates.
     for (const nodeId of way.nodeRefs) {
       degree.set(nodeId, (degree.get(nodeId) ?? 0) + 1);
     }
@@ -81,13 +83,26 @@ function findJunctionNodes(ways: readonly OsmWay[]): Set<number> {
   for (const [nodeId, d] of degree) {
     if (d >= 2) junctions.add(nodeId);
   }
-  // Also include way endpoints with degree 1 — they are network-boundary
-  // junctions (where vehicles will spawn/despawn).
+  // Way endpoints are always junctions (network-boundary stubs).
   for (const way of ways) {
     const first = way.nodeRefs[0];
     const last = way.nodeRefs[way.nodeRefs.length - 1];
     if (first !== undefined) junctions.add(first);
     if (last !== undefined) junctions.add(last);
+  }
+  // Mid-way traffic-signal nodes must also be junctions so the signal tag
+  // survives into the junction classification step. OSM mappers place
+  // `highway=traffic_signals` at the stop-line, which is often a point along
+  // a through-road rather than at a road intersection. Without this, ~85% of
+  // tagged signals in dense neighborhoods are silently absorbed into edge
+  // geometry and the sim treats those approaches as priority-yield.
+  for (const way of ways) {
+    for (const nodeId of way.nodeRefs) {
+      const node = nodes.get(nodeId);
+      if (node && node.tags['highway'] === 'traffic_signals') {
+        junctions.add(nodeId);
+      }
+    }
   }
   return junctions;
 }
