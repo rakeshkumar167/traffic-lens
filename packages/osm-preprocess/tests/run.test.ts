@@ -9,7 +9,7 @@ const SNAPSHOT_PATH = join(here, 'snapshots', 'tiny.graph.json');
 
 describe('end-to-end preprocess (tiny.osm)', () => {
   it('matches the committed graph snapshot', async () => {
-    const graph = await preprocess({
+    const { graph } = await preprocess({
       inputPath: TINY_FIXTURE,
       bbox: { minLon: 77.619, minLat: 12.929, maxLon: 77.631, maxLat: 12.946 },
       scriptVersion: '0.0.0',
@@ -20,13 +20,13 @@ describe('end-to-end preprocess (tiny.osm)', () => {
   });
 
   it('is deterministic across runs', async () => {
-    const a = await preprocess({
+    const { graph: a } = await preprocess({
       inputPath: TINY_FIXTURE,
       bbox: { minLon: 77.619, minLat: 12.929, maxLon: 77.631, maxLat: 12.946 },
       scriptVersion: '0.0.0',
       generatedAt: '2026-06-12T00:00:00.000Z',
     });
-    const b = await preprocess({
+    const { graph: b } = await preprocess({
       inputPath: TINY_FIXTURE,
       bbox: { minLon: 77.619, minLat: 12.929, maxLon: 77.631, maxLat: 12.946 },
       scriptVersion: '0.0.0',

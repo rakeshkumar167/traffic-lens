@@ -56,7 +56,7 @@ async function readScriptVersion(): Promise<string> {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const scriptVersion = await readScriptVersion();
-  const graph = await preprocess({
+  const { graph, droppedJunctionCount, droppedEdgeCount } = await preprocess({
     inputPath: args.inPath,
     bbox: args.bbox,
     scriptVersion,
@@ -65,12 +65,15 @@ async function main(): Promise<void> {
   await writeFile(args.outPath, emitRoadGraphJson(graph), 'utf8');
   const signalledCount = graph.junctions.filter((j) => j.kind === 'signalled').length;
   const priorityCount = graph.junctions.length - signalledCount;
+  const prunedNote = droppedJunctionCount > 0
+    ? `, pruned ${droppedJunctionCount} junctions/${droppedEdgeCount} edges from minor components`
+    : '';
   // Single-line summary that the test asserts against.
   process.stdout.write(
     `wrote ${args.outPath}: ${graph.edges.length} edges, ` +
       `${graph.junctions.length} junctions ` +
       `(${signalledCount} signalled, ${priorityCount} priority), ` +
-      `${graph.boundaryEdges.length} boundary edges\n`,
+      `${graph.boundaryEdges.length} boundary edges${prunedNote}\n`,
   );
 }
 

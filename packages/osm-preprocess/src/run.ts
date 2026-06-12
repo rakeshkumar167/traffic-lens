@@ -6,6 +6,7 @@ import { buildEdges } from './graph.ts';
 import { buildJunctions } from './junctions.ts';
 import { findBoundaryEdges } from './boundary.ts';
 import { validateRoadGraph } from './validate.ts';
+import { pruneToLargestComponent } from './largest-component.ts';
 
 export interface PreprocessOptions {
   readonly inputPath: string;
@@ -15,11 +16,18 @@ export interface PreprocessOptions {
   readonly generatedAt?: string;
 }
 
-export async function preprocess(opts: PreprocessOptions): Promise<RoadGraph> {
+export interface PreprocessResult {
+  readonly graph: RoadGraph;
+  readonly droppedJunctionCount: number;
+  readonly droppedEdgeCount: number;
+}
+
+export async function preprocess(opts: PreprocessOptions): Promise<PreprocessResult> {
   const parsed = await parseOsmFile(opts.inputPath);
-  const { edges, junctionNodeIds } = buildEdges(parsed);
-  const junctions = buildJunctions(parsed, edges, junctionNodeIds);
-  const boundaryEdges = findBoundaryEdges(edges, junctions);
+  const { edges: rawEdges, junctionNodeIds } = buildEdges(parsed);
+  const rawJunctions = buildJunctions(parsed, rawEdges, junctionNodeIds);
+  const pruned = pruneToLargestComponent(rawEdges, rawJunctions);
+  const boundaryEdges = findBoundaryEdges(pruned.edges, pruned.junctions);
   const sourceHash = await sha256OfFile(opts.inputPath);
 
   const graph: RoadGraph = {
@@ -30,13 +38,17 @@ export async function preprocess(opts: PreprocessOptions): Promise<RoadGraph> {
       sourceHash,
       scriptVersion: opts.scriptVersion,
     },
-    edges,
-    junctions,
+    edges: pruned.edges,
+    junctions: pruned.junctions,
     boundaryEdges,
   };
 
   validateRoadGraph(graph);
-  return graph;
+  return {
+    graph,
+    droppedJunctionCount: pruned.droppedJunctionCount,
+    droppedEdgeCount: pruned.droppedEdgeCount,
+  };
 }
 
 async function sha256OfFile(filePath: string): Promise<string> {
