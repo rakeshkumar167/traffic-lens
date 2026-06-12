@@ -8,11 +8,29 @@
     "node": ">=22.0.0"
   },
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "pnpm -r --if-present typecheck && tsc --noEmit -p tsconfig.json",
     "test": "pnpm -r --if-present test",
-    "typecheck": "pnpm -r --if-present typecheck",
     "preprocess": "pnpm -F @traffic-lens/osm-preprocess preprocess"
   },
+  "dependencies": {
+    "@traffic-lens/shared": "workspace:*",
+    "@traffic-lens/sim": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "maplibre-gl": "^4.7.1",
+    "@deck.gl/core": "^9.0.32",
+    "@deck.gl/layers": "^9.0.32",
+    "@deck.gl/mapbox": "^9.0.32"
+  },
   "devDependencies": {
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vite": "^5.4.10",
+    "@vitejs/plugin-react": "^4.3.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/node": "^22.0.0"
   }
 }
