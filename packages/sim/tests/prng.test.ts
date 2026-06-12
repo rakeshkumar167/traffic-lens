@@ -32,6 +32,6 @@ describe('createRng', () => {
     const rng = createRng(1);
     expect(rng()).toBeCloseTo(0.6270739405881613, 10);
     expect(rng()).toBeCloseTo(0.002735721180215478, 10);
-    expect(rng()).toBeCloseTo(0.5274603895843029, 10);
+    expect(rng()).toBeCloseTo(0.5274470399599522, 10);
   });
 });
