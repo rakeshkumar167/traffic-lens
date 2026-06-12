@@ -1,2 +1,11 @@
-// Public API of @traffic-lens/sim — populated in later tasks.
-export {};
+export { World, TICK_HZ, TICK_DT } from './world.ts';
+export { tick } from './tick.ts';
+export { createRng } from './prng.ts';
+export { idmAcceleration, DEFAULT_IDM_PARAMS } from './idm.ts';
+export { mobilDecision, DEFAULT_MOBIL_PARAMS } from './mobil.ts';
+export { canEnterPriorityJunction, DEFAULT_PRIORITY_PARAMS } from './priority.ts';
+export { Router } from './routing.ts';
+export { VehicleStore } from './vehicle-store.ts';
+export { PerceptionIndex } from './perception.ts';
+export { SpawnController } from './spawn.ts';
+export { createSignalState, advanceSignalState, isEdgeGreen } from './signals.ts';

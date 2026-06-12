@@ -3,12 +3,12 @@
   "durationSec": 600,
   "sources": [
     {
-      "id": "south_in",
-      "spawnEdgeId": 1720,
-      "vehiclesPerHour": 600,
+      "id": "north_in",
+      "spawnEdgeId": 8,
+      "vehiclesPerHour": 700,
       "destinations": [
-        { "exitEdgeId": 91, "weight": 0.6 },
-        { "exitEdgeId": 92, "weight": 0.4 }
+        { "exitEdgeId": 2013, "weight": 0.5 },
+        { "exitEdgeId": 4510, "weight": 0.5 }
       ]
     },
     {
@@ -16,26 +16,26 @@
       "spawnEdgeId": 1738,
       "vehiclesPerHour": 500,
       "destinations": [
-        { "exitEdgeId": 444, "weight": 0.5 },
-        { "exitEdgeId": 1750, "weight": 0.5 }
+        { "exitEdgeId": 4390, "weight": 0.6 },
+        { "exitEdgeId": 4194, "weight": 0.4 }
       ]
     },
     {
-      "id": "north_in",
-      "spawnEdgeId": 8,
-      "vehiclesPerHour": 700,
+      "id": "inner_a",
+      "spawnEdgeId": 117,
+      "vehiclesPerHour": 600,
       "destinations": [
-        { "exitEdgeId": 91, "weight": 0.4 },
-        { "exitEdgeId": 1750, "weight": 0.6 }
+        { "exitEdgeId": 118, "weight": 0.5 },
+        { "exitEdgeId": 2158, "weight": 0.5 }
       ]
     },
     {
-      "id": "east_in",
-      "spawnEdgeId": 2433,
+      "id": "inner_b",
+      "spawnEdgeId": 231,
       "vehiclesPerHour": 400,
       "destinations": [
-        { "exitEdgeId": 92, "weight": 0.5 },
-        { "exitEdgeId": 444, "weight": 0.5 }
+        { "exitEdgeId": 232, "weight": 0.6 },
+        { "exitEdgeId": 117, "weight": 0.4 }
       ]
     }
   ]
