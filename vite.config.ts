@@ -6,9 +6,12 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// `credentialless` instead of `require-corp` keeps the page cross-origin
+// isolated (so SharedArrayBuffer works) while still letting MapLibre fetch
+// the basemap style + tiles from CDNs that don't set CORP headers.
 const crossOriginIsolation = {
   'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Embedder-Policy': 'require-corp',
+  'Cross-Origin-Embedder-Policy': 'credentialless',
 };
 
 // Serve files under /data/* from the repo's `data/` directory, both in dev

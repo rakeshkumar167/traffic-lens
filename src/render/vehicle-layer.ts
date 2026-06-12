@@ -33,8 +33,16 @@ export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs
     data: DATA,
     pickable: false,
     radiusUnits: 'meters',
+    // Real-world car footprint is ~2.5 m wide, but at zoom 15 that's
+    // sub-pixel. Clamp to a visible screen-pixel range so vehicles are
+    // always discoverable at any zoom level.
+    radiusMinPixels: 4,
+    radiusMaxPixels: 14,
+    stroked: true,
+    lineWidthMinPixels: 1,
+    getLineColor: [10, 10, 20, 220],
     getRadius: (d: VehicleDatum) =>
-      views.state[d.slotIdx] === STATE_ACTIVE ? 2.5 : 0,
+      views.state[d.slotIdx] === STATE_ACTIVE ? 3.5 : 0,
     getPosition: (d: VehicleDatum) => {
       const i = d.slotIdx;
       const x = snapshot.posX[i]! + (views.posX[i]! - snapshot.posX[i]!) * alpha;
