@@ -10,7 +10,11 @@ export const config: VercelConfig = {
       source: '/(.*)',
       headers: [
         { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-        { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
+        // `credentialless` (matching the dev server) keeps the page cross-origin
+        // isolated for SharedArrayBuffer while letting MapLibre fetch OSM basemap
+        // tiles, whose CDN doesn't send CORP headers. (Chrome/Firefox only — not
+        // Safari.) `require-corp` would block the tiles.
+        { key: 'Cross-Origin-Embedder-Policy', value: 'credentialless' },
       ],
     },
   ],

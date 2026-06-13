@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -36,6 +36,20 @@ function dataAssetsPlugin() {
     },
     configurePreviewServer(server: import('vite').PreviewServer) {
       server.middlewares.use(serveData);
+    },
+    // Emit the top-level data/*.json into the build output (dist/data/*) so the
+    // deployed app can fetch them. The raw/ subdirectory is intentionally excluded.
+    generateBundle(this: {
+      emitFile: (f: { type: 'asset'; fileName: string; source: Buffer }) => void;
+    }) {
+      for (const file of readdirSync(dataDir)) {
+        if (!file.endsWith('.json')) continue;
+        this.emitFile({
+          type: 'asset',
+          fileName: `data/${file}`,
+          source: readFileSync(resolve(dataDir, file)),
+        });
+      }
     },
   };
 }
