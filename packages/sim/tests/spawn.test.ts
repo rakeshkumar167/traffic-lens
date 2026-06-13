@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   computeSabByteLength,
   createSabViews,
+  MAX_VEHICLES,
   ROAD_CLASS_SPEED_MPS,
   VEHICLE_TYPE_CAR,
 } from '@traffic-lens/shared';
@@ -83,6 +84,25 @@ describe('SpawnController', () => {
     expect(store.views.vehicleType[slot]).toBe(VEHICLE_TYPE_CAR);
     expect(store.views.speed[slot]).toBeCloseTo(ROAD_CLASS_SPEED_MPS.residential, 5);
     expect(store.getRoute(slot)).toEqual(new Uint32Array([10, 20]));
+  });
+
+  it('skips spawning without throwing when the vehicle pool is full', () => {
+    const { store, router, edgesById } = makeWorld();
+    // Fill every slot with vehicles past the spawn-block zone (progress 0.5 of
+    // 100 m = 50 m, well beyond the 10 m block distance) so the lane is clear
+    // and only the pool-full condition can stop a spawn.
+    for (let i = 0; i < MAX_VEHICLES; i++) {
+      store.spawn({
+        posX: 0, posY: 0, heading: 0, speed: 0, accel: 0,
+        edgeId: 10, edgeProgress: 0.5, lane: 0,
+        vehicleType: VEHICLE_TYPE_CAR, route: new Uint32Array([10, 20]),
+      });
+    }
+    const rng = () => 0.0; // forces "would spawn"
+    const ctrl = new SpawnController(DEMAND, router, edgesById, rng);
+    let spawned: number[] = [];
+    expect(() => { spawned = ctrl.step(0.5, store); }).not.toThrow();
+    expect(spawned).toEqual([]);
   });
 
   it('holds the spawn when the spawn lane is blocked within 10 m', () => {

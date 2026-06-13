@@ -9,9 +9,20 @@ import { useFrameLoop } from '../hooks/useFrameLoop.ts';
 import { createSnapshot, updateSnapshotAndAlpha } from '../render/interpolation.ts';
 import { buildVehicleLayer } from '../render/vehicle-layer.ts';
 
-// Static outline of the simulated extent (graph bbox). Vehicles despawn when
-// they reach a boundary edge, so this rectangle marks where that happens.
-function buildBoundaryLayer(bbox: BoundingBox): PolygonLayer<number[][]> {
+export type MapMode = 'drawing' | 'running';
+
+function bboxFromCorners(a: maplibregl.LngLat, b: maplibregl.LngLat): BoundingBox {
+  return {
+    minLon: Math.min(a.lng, b.lng),
+    maxLon: Math.max(a.lng, b.lng),
+    minLat: Math.min(a.lat, b.lat),
+    maxLat: Math.max(a.lat, b.lat),
+  };
+}
+
+// Outline of the selected region (the rectangle the user drew). Drawn with a
+// thick border plus a faint fill so the active extent is easy to see.
+function buildSelectionLayer(bbox: BoundingBox): PolygonLayer<number[][]> {
   const ring: number[][] = [
     [bbox.minLon, bbox.minLat],
     [bbox.maxLon, bbox.minLat],
@@ -19,30 +30,32 @@ function buildBoundaryLayer(bbox: BoundingBox): PolygonLayer<number[][]> {
     [bbox.minLon, bbox.maxLat],
   ];
   return new PolygonLayer<number[][]>({
-    id: 'boundary',
+    id: 'selection',
     data: [ring],
     getPolygon: (d) => d,
     stroked: true,
-    filled: false,
-    getLineColor: [255, 220, 80, 200],
-    lineWidthMinPixels: 2,
-    getLineWidth: 2,
+    filled: true,
+    getFillColor: [255, 220, 80, 22],
+    getLineColor: [255, 220, 80, 220],
+    lineWidthMinPixels: 4,
+    getLineWidth: 4,
   });
 }
 
 export interface MapViewProps {
   readonly views: SabViews | null;
-  readonly bbox: BoundingBox | null;
+  readonly mode: MapMode;
+  readonly selectionRect: BoundingBox | null;
+  readonly onSelectionChange: (bbox: BoundingBox) => void;
   readonly running: boolean;
   readonly onStats: (renderFps: number, tickNumber: number) => void;
 }
 
-export function MapView({ views, bbox, running, onStats }: MapViewProps) {
+export function MapView({ views, mode, selectionRect, onSelectionChange, running, onStats }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
   const snapshot = useMemo(createSnapshot, []);
-  const boundaryLayer = useMemo(() => (bbox ? buildBoundaryLayer(bbox) : null), [bbox]);
 
   // Init map once.
   useEffect(() => {
@@ -69,23 +82,77 @@ export function MapView({ views, bbox, running, onStats }: MapViewProps) {
     };
   }, []);
 
-  const tickView = views ? views.control.tickNumber : null;
-
+  // Running mode: animate vehicles (plus the selection outline) every frame.
   const stats = useFrameLoop({
-    enabled: !!views,
-    tickNumberView: tickView,
+    enabled: mode === 'running' && !!views,
+    tickNumberView: views ? views.control.tickNumber : null,
     onFrame: (nowMs) => {
       if (!views || !overlayRef.current) return;
       const alpha = updateSnapshotAndAlpha(snapshot, views, nowMs);
-
       overlayRef.current.setProps({
         layers: [
-          ...(boundaryLayer ? [boundaryLayer] : []),
+          ...(selectionRect ? [buildSelectionLayer(selectionRect)] : []),
           buildVehicleLayer({ views, snapshot, alpha, layerId: 'vehicles' }),
         ],
       });
     },
   });
+
+  // Drawing mode: drag to draw a rectangle; also keep the confirmed selection
+  // (or a cleared canvas) on screen. Pan is disabled only while dragging.
+  useEffect(() => {
+    const map = mapRef.current;
+    const overlay = overlayRef.current;
+    const container = containerRef.current;
+    if (!map || !overlay || !container || mode !== 'drawing') return;
+
+    const drawRect = (bbox: BoundingBox | null) =>
+      overlay.setProps({ layers: bbox ? [buildSelectionLayer(bbox)] : [] });
+    drawRect(selectionRect);
+
+    const toLngLat = (clientX: number, clientY: number) => {
+      const r = container.getBoundingClientRect();
+      return map.unproject([clientX - r.left, clientY - r.top]);
+    };
+
+    let startScreen: { x: number; y: number } | null = null;
+    let startLngLat: maplibregl.LngLat | null = null;
+
+    const onDown = (e: PointerEvent) => {
+      if (e.button !== 0) return;
+      startScreen = { x: e.clientX, y: e.clientY };
+      startLngLat = toLngLat(e.clientX, e.clientY);
+      map.dragPan.disable();
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!startLngLat) return;
+      drawRect(bboxFromCorners(startLngLat, toLngLat(e.clientX, e.clientY)));
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!startLngLat || !startScreen) return;
+      const dx = e.clientX - startScreen.x;
+      const dy = e.clientY - startScreen.y;
+      const from = startLngLat;
+      startLngLat = null;
+      startScreen = null;
+      map.dragPan.enable();
+      if (Math.hypot(dx, dy) < 6) {
+        drawRect(selectionRect); // treat as a click, keep current selection
+        return;
+      }
+      onSelectionChange(bboxFromCorners(from, toLngLat(e.clientX, e.clientY)));
+    };
+
+    container.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      container.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      map.dragPan.enable();
+    };
+  }, [mode, selectionRect, onSelectionChange]);
 
   // Suppress unused-warning for `running` (Plan C uses it later for cosmetic UI).
   void running;

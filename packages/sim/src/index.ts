@@ -10,3 +10,4 @@ export { PerceptionIndex } from './perception.ts';
 export { SpawnController } from './spawn.ts';
 export { createSignalState, advanceSignalState, isEdgeGreen } from './signals.ts';
 export { createWorkerDriver, type WorkerDriver } from './worker-driver.ts';
+export { clipGraph, buildDemand, type ClipResult } from './region.ts';

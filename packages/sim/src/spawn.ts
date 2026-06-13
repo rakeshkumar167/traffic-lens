@@ -1,7 +1,7 @@
 import type {
   Demand, DemandSource, Edge, EdgeId,
 } from '@traffic-lens/shared';
-import { ROAD_CLASS_SPEED_MPS, VEHICLE_TYPE_CAR } from '@traffic-lens/shared';
+import { MAX_VEHICLES, ROAD_CLASS_SPEED_MPS, VEHICLE_TYPE_CAR } from '@traffic-lens/shared';
 import type { Router } from './routing.ts';
 import type { VehicleStore } from './vehicle-store.ts';
 
@@ -49,6 +49,8 @@ export class SpawnController {
     const spawned: number[] = [];
     for (const rs of this.sources) {
       if (this.rng() >= rs.ratePerSec * dt) continue;
+      // Pool full — drop the spawn rather than overflow the SAB slot pool.
+      if (store.activeCount() >= MAX_VEHICLES) continue;
       const dest = this.pickDestination(rs);
       const route = this.router.findRoute(rs.source.spawnEdgeId, dest.exitEdgeId);
       if (!route) continue;
