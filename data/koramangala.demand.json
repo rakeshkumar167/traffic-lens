@@ -7,8 +7,30 @@
       "spawnEdgeId": 8,
       "vehiclesPerHour": 700,
       "destinations": [
-        { "exitEdgeId": 2013, "weight": 0.5 },
-        { "exitEdgeId": 4510, "weight": 0.5 }
+        {
+          "exitEdgeId": 5108,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 4060,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 2348,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 4283,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 3854,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 5122,
+          "weight": 1
+        }
       ]
     },
     {
@@ -16,8 +38,30 @@
       "spawnEdgeId": 1738,
       "vehiclesPerHour": 500,
       "destinations": [
-        { "exitEdgeId": 4390, "weight": 0.6 },
-        { "exitEdgeId": 4194, "weight": 0.4 }
+        {
+          "exitEdgeId": 4234,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 1702,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 886,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 3413,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 3492,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 3908,
+          "weight": 1
+        }
       ]
     },
     {
@@ -25,8 +69,30 @@
       "spawnEdgeId": 117,
       "vehiclesPerHour": 600,
       "destinations": [
-        { "exitEdgeId": 118, "weight": 0.5 },
-        { "exitEdgeId": 2158, "weight": 0.5 }
+        {
+          "exitEdgeId": 4613,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 430,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 1619,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 1987,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 3888,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 3887,
+          "weight": 1
+        }
       ]
     },
     {
@@ -34,8 +100,30 @@
       "spawnEdgeId": 231,
       "vehiclesPerHour": 400,
       "destinations": [
-        { "exitEdgeId": 232, "weight": 0.6 },
-        { "exitEdgeId": 117, "weight": 0.4 }
+        {
+          "exitEdgeId": 4613,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 4895,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 3728,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 2650,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 3888,
+          "weight": 1
+        },
+        {
+          "exitEdgeId": 3887,
+          "weight": 1
+        }
       ]
     }
   ]

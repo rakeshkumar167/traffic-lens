@@ -88,6 +88,7 @@ export function App() {
     <>
       <MapView
         views={worker.ready ? sim.views : null}
+        bbox={graph?.meta.bbox ?? null}
         running={running}
         onStats={handleStats}
       />
