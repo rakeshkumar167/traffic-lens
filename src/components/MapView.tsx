@@ -20,25 +20,43 @@ function bboxFromCorners(a: maplibregl.LngLat, b: maplibregl.LngLat): BoundingBo
   };
 }
 
-// Outline of the selected region (the rectangle the user drew). Drawn with a
-// thick border plus a faint fill so the active extent is easy to see.
-function buildSelectionLayer(bbox: BoundingBox): PolygonLayer<number[][]> {
-  const ring: number[][] = [
+function ringOf(bbox: BoundingBox): number[][] {
+  return [
     [bbox.minLon, bbox.minLat],
     [bbox.maxLon, bbox.minLat],
     [bbox.maxLon, bbox.maxLat],
     [bbox.minLon, bbox.maxLat],
   ];
+}
+
+// Outline of the selected region (the rectangle the user drew). Drawn with a
+// thick #005A9C border plus a faint fill so the active extent is easy to see.
+function buildSelectionLayer(bbox: BoundingBox): PolygonLayer<number[][]> {
   return new PolygonLayer<number[][]>({
     id: 'selection',
-    data: [ring],
+    data: [ringOf(bbox)],
     getPolygon: (d) => d,
     stroked: true,
     filled: true,
-    getFillColor: [255, 220, 80, 22],
-    getLineColor: [255, 220, 80, 220],
+    getFillColor: [0, 90, 156, 30],
+    getLineColor: [0, 90, 156, 230],
     lineWidthMinPixels: 4,
     getLineWidth: 4,
+  });
+}
+
+// Grey guide outline of the available data extent — the only area roads exist,
+// so the user knows where a selection will actually contain a network.
+function buildGuideLayer(bbox: BoundingBox): PolygonLayer<number[][]> {
+  return new PolygonLayer<number[][]>({
+    id: 'data-extent',
+    data: [ringOf(bbox)],
+    getPolygon: (d) => d,
+    stroked: true,
+    filled: false,
+    getLineColor: [150, 150, 150, 170],
+    lineWidthMinPixels: 2,
+    getLineWidth: 2,
   });
 }
 
@@ -46,16 +64,18 @@ export interface MapViewProps {
   readonly views: SabViews | null;
   readonly mode: MapMode;
   readonly selectionRect: BoundingBox | null;
+  readonly dataExtent: BoundingBox | null;
   readonly onSelectionChange: (bbox: BoundingBox) => void;
   readonly running: boolean;
   readonly onStats: (renderFps: number, tickNumber: number) => void;
 }
 
-export function MapView({ views, mode, selectionRect, onSelectionChange, running, onStats }: MapViewProps) {
+export function MapView({ views, mode, selectionRect, dataExtent, onSelectionChange, running, onStats }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
   const snapshot = useMemo(createSnapshot, []);
+  const guideLayer = useMemo(() => (dataExtent ? buildGuideLayer(dataExtent) : null), [dataExtent]);
 
   // Init map once.
   useEffect(() => {
@@ -91,6 +111,7 @@ export function MapView({ views, mode, selectionRect, onSelectionChange, running
       const alpha = updateSnapshotAndAlpha(snapshot, views, nowMs);
       overlayRef.current.setProps({
         layers: [
+          ...(guideLayer ? [guideLayer] : []),
           ...(selectionRect ? [buildSelectionLayer(selectionRect)] : []),
           buildVehicleLayer({ views, snapshot, alpha, layerId: 'vehicles' }),
         ],
@@ -107,7 +128,12 @@ export function MapView({ views, mode, selectionRect, onSelectionChange, running
     if (!map || !overlay || !container || mode !== 'drawing') return;
 
     const drawRect = (bbox: BoundingBox | null) =>
-      overlay.setProps({ layers: bbox ? [buildSelectionLayer(bbox)] : [] });
+      overlay.setProps({
+        layers: [
+          ...(guideLayer ? [guideLayer] : []),
+          ...(bbox ? [buildSelectionLayer(bbox)] : []),
+        ],
+      });
     drawRect(selectionRect);
 
     const toLngLat = (clientX: number, clientY: number) => {
@@ -152,7 +178,7 @@ export function MapView({ views, mode, selectionRect, onSelectionChange, running
       window.removeEventListener('pointerup', onUp);
       map.dragPan.enable();
     };
-  }, [mode, selectionRect, onSelectionChange]);
+  }, [mode, selectionRect, onSelectionChange, guideLayer]);
 
   // Suppress unused-warning for `running` (Plan C uses it later for cosmetic UI).
   void running;

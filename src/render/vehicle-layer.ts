@@ -51,8 +51,8 @@ export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs
       return [lon, lat];
     },
     getFillColor: (d: VehicleDatum) => {
-      // Colour by speed (m/s) on a red → amber → green ramp.
-      // 0 m/s = red (stopped), ~7 m/s = amber (mid), 14 m/s = green (free-flow).
+      // Colour by speed (m/s) on a red → amber → blue ramp.
+      // 0 m/s = red (stopped), ~7 m/s = amber (mid), 14 m/s = #1F75FE (free-flow).
       const speed = views.speed[d.slotIdx]!;
       const t = Math.max(0, Math.min(1, speed / 14));
       const lerp = (a: number, b: number, u: number) => Math.round(a + (b - a) * u);
@@ -61,9 +61,9 @@ export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs
         const u = t / 0.5;
         return [lerp(220, 255, u), lerp(45, 176, u), lerp(40, 0, u), 230];
       }
-      // amber (255,176,0) → green (45,200,75)
+      // amber (255,176,0) → blue #1F75FE (31,117,254)
       const u = (t - 0.5) / 0.5;
-      return [lerp(255, 45, u), lerp(176, 200, u), lerp(0, 75, u), 230];
+      return [lerp(255, 31, u), lerp(176, 117, u), lerp(0, 254, u), 230];
     },
     updateTriggers: {
       getRadius: alpha,

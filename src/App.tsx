@@ -49,6 +49,20 @@ export function App() {
     [graph, selectionRect],
   );
 
+  // Geographic extent of the loaded network (where roads exist) — drawn as a
+  // grey guide so the user knows where a selection will contain a network.
+  const dataExtent = useMemo<BoundingBox | null>(() => {
+    if (!graph || graph.junctions.length === 0) return null;
+    let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+    for (const j of graph.junctions) {
+      if (j.lon < minLon) minLon = j.lon;
+      if (j.lon > maxLon) maxLon = j.lon;
+      if (j.lat < minLat) minLat = j.lat;
+      if (j.lat > maxLat) maxLat = j.lat;
+    }
+    return { minLon, minLat, maxLon, maxLat };
+  }, [graph]);
+
   const [running, setRunning] = useState(false);
   const [renderFps, setRenderFps] = useState(0);
   const [tickNumber, setTickNumber] = useState(0);
@@ -124,6 +138,7 @@ export function App() {
         views={workerReady ? views : null}
         mode={mode}
         selectionRect={selectionRect}
+        dataExtent={dataExtent}
         onSelectionChange={setSelectionRect}
         running={running}
         onStats={handleStats}
