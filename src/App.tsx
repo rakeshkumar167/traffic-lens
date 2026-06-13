@@ -22,7 +22,7 @@ export function App() {
 
   const [mode, setMode] = useState<MapMode>('drawing');
   const [selectionRect, setSelectionRect] = useState<BoundingBox | null>(null);
-  const [intensity, setIntensity] = useState(400);
+  const [intensity, setIntensity] = useState(800);
   const [simConfig, setSimConfig] = useState<SimConfig | null>(null);
 
   useEffect(() => {

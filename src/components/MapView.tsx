@@ -180,6 +180,20 @@ export function MapView({ views, mode, selectionRect, dataExtent, onSelectionCha
     };
   }, [mode, selectionRect, onSelectionChange, guideLayer]);
 
+  // On entering running mode, frame the map to the selected region so the user
+  // is looking exactly where vehicles enter (they spawn at the region's edges).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || mode !== 'running' || !selectionRect) return;
+    map.fitBounds(
+      [
+        [selectionRect.minLon, selectionRect.minLat],
+        [selectionRect.maxLon, selectionRect.maxLat],
+      ],
+      { padding: 60, duration: 700 },
+    );
+  }, [mode, selectionRect]);
+
   // Suppress unused-warning for `running` (Plan C uses it later for cosmetic UI).
   void running;
 
