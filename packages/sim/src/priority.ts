@@ -26,9 +26,11 @@ export interface PriorityInput {
 
 export function canEnterPriorityJunction(input: PriorityInput): boolean {
   const { selfDistanceToJunction, selfSpeed, priorityApproaches, params } = input;
-  if (selfSpeed < params.minSelfSpeedMps) return false;
-
-  const tSelf = selfDistanceToJunction / selfSpeed;
+  // Clamp own speed to a minimum "creep" speed rather than refusing when stopped.
+  // A vehicle at rest still needs to proceed once the way is clear; refusing
+  // outright deadlocks it (it can never reach minSelfSpeedMps while held).
+  const effSpeed = Math.max(selfSpeed, params.minSelfSpeedMps);
+  const tSelf = selfDistanceToJunction / effSpeed;
   for (const other of priorityApproaches) {
     if (other.distanceToJunction > params.minSightDistanceM) continue;
     if (other.speed < params.minPrioritySpeedMps) continue;

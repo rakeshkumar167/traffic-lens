@@ -40,13 +40,22 @@ describe('canEnterPriorityJunction', () => {
     })).toBe(true);
   });
 
-  it('with self at zero speed, rejects (avoid divide-by-zero misuse)', () => {
-    // We model "yielding at the line" — vehicle at rest can't sensibly compute
-    // its own time-to-junction, so refuse and let IDM hold it there.
+  it('lets a stopped vehicle enter once the way is clear (no give-way deadlock)', () => {
+    // A vehicle that has come to rest at the line must be able to proceed when
+    // there is no conflicting priority traffic — otherwise it deadlocks forever.
     expect(canEnterPriorityJunction({
-      selfDistanceToJunction: 0.1,
+      selfDistanceToJunction: 2,
       selfSpeed: 0,
-      priorityApproaches: [{ distanceToJunction: 100, speed: 10 }],
+      priorityApproaches: [{ distanceToJunction: 100, speed: 10 }], // out of sight (>80 m)
+      params: p,
+    })).toBe(true);
+  });
+
+  it('still makes a stopped vehicle yield to a close, fast priority vehicle', () => {
+    expect(canEnterPriorityJunction({
+      selfDistanceToJunction: 2,
+      selfSpeed: 0,
+      priorityApproaches: [{ distanceToJunction: 10, speed: 10 }],
       params: p,
     })).toBe(false);
   });
