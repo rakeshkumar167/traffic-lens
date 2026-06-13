@@ -8,6 +8,7 @@ import { INITIAL_VIEW, BASE_STYLE } from '../config/map.ts';
 import { useFrameLoop } from '../hooks/useFrameLoop.ts';
 import { createSnapshot, updateSnapshotAndAlpha } from '../render/interpolation.ts';
 import { buildVehicleLayer } from '../render/vehicle-layer.ts';
+import { buildSignalLayer, type SignalRenderData } from '../render/signal-layer.ts';
 
 export type MapMode = 'drawing' | 'running';
 
@@ -65,12 +66,13 @@ export interface MapViewProps {
   readonly mode: MapMode;
   readonly selectionRect: BoundingBox | null;
   readonly dataExtent: BoundingBox | null;
+  readonly signalData: SignalRenderData | null;
   readonly onSelectionChange: (bbox: BoundingBox) => void;
   readonly running: boolean;
   readonly onStats: (renderFps: number, tickNumber: number) => void;
 }
 
-export function MapView({ views, mode, selectionRect, dataExtent, onSelectionChange, running, onStats }: MapViewProps) {
+export function MapView({ views, mode, selectionRect, dataExtent, signalData, onSelectionChange, running, onStats }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
@@ -109,11 +111,13 @@ export function MapView({ views, mode, selectionRect, dataExtent, onSelectionCha
     onFrame: (nowMs) => {
       if (!views || !overlayRef.current) return;
       const alpha = updateSnapshotAndAlpha(snapshot, views, nowMs);
+      const simSec = views.control.simWallClockSec[0]!;
       overlayRef.current.setProps({
         layers: [
           ...(guideLayer ? [guideLayer] : []),
           ...(selectionRect ? [buildSelectionLayer(selectionRect)] : []),
           buildVehicleLayer({ views, snapshot, alpha, layerId: 'vehicles' }),
+          ...(signalData ? [buildSignalLayer(signalData, simSec)] : []),
         ],
       });
     },

@@ -3,16 +3,7 @@ import {
   MAX_VEHICLES, STATE_ACTIVE, type SabViews,
 } from '@traffic-lens/shared';
 import type { InterpSnapshot } from './interpolation.ts';
-
-const EARTH_RADIUS_M = 6378137;
-const HALF_PI = Math.PI / 2;
-
-// Inverse of Plan A's lonLatToWebMercator.
-function webMercatorToLonLat(x: number, y: number): [number, number] {
-  const lon = (x / EARTH_RADIUS_M) * (180 / Math.PI);
-  const lat = (2 * Math.atan(Math.exp(y / EARTH_RADIUS_M)) - HALF_PI) * (180 / Math.PI);
-  return [lon, lat];
-}
+import { webMercatorToLonLat } from './projection.ts';
 
 interface VehicleDatum {
   readonly slotIdx: number;

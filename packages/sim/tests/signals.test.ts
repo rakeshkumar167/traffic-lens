@@ -4,6 +4,7 @@ import {
   createSignalState,
   advanceSignalState,
   isEdgeGreen,
+  greenIncomingEdgesAt,
 } from '../src/signals.ts';
 
 const PLAN: SignalPlan = {
@@ -63,5 +64,30 @@ describe('signals', () => {
     // 150 mod 60 = 30 → start of phase 1.
     expect(s.phaseIndex).toBe(1);
     expect(s.phaseElapsedSec).toBeCloseTo(0, 5);
+  });
+
+  describe('greenIncomingEdgesAt', () => {
+    it('returns the active phase edges across the cycle', () => {
+      expect(greenIncomingEdgesAt(PLAN, 0)).toEqual([10]);
+      expect(greenIncomingEdgesAt(PLAN, 29.9)).toEqual([10]);
+      expect(greenIncomingEdgesAt(PLAN, 30)).toEqual([20]);
+      expect(greenIncomingEdgesAt(PLAN, 59.9)).toEqual([20]);
+      expect(greenIncomingEdgesAt(PLAN, 60)).toEqual([10]); // wraps
+      expect(greenIncomingEdgesAt(PLAN, 90)).toEqual([20]); // 1.5 cycles
+    });
+
+    it('returns [] for an empty plan', () => {
+      expect(greenIncomingEdgesAt({ cycleSec: 60, phases: [] }, 5)).toEqual([]);
+    });
+
+    it('agrees with advanceSignalState + isEdgeGreen at sampled times', () => {
+      for (const t of [0, 5, 15, 29, 30, 31, 45, 59, 61, 119, 121]) {
+        const s = createSignalState();
+        advanceSignalState(s, PLAN, t);
+        for (const edge of [10, 20]) {
+          expect(greenIncomingEdgesAt(PLAN, t).includes(edge)).toBe(isEdgeGreen(s, PLAN, edge));
+        }
+      }
+    });
   });
 });

@@ -49,3 +49,18 @@ export function isEdgeGreen(
   if (!phase) return false;
   return phase.greenIncomingEdges.includes(edgeId);
 }
+
+// Green incoming edges at an absolute sim time, computed directly from the plan
+// (same cyclic derivation as advanceSignalState). Lets a reader recompute signal
+// state from elapsed time without holding a SignalState. Returns [] for an
+// empty/degenerate plan.
+export function greenIncomingEdgesAt(plan: SignalPlan, simSec: number): readonly EdgeId[] {
+  if (plan.phases.length === 0 || plan.cycleSec <= 0) return [];
+  const t = ((simSec % plan.cycleSec) + plan.cycleSec) % plan.cycleSec;
+  let acc = 0;
+  for (const phase of plan.phases) {
+    if (t < acc + phase.durationSec) return phase.greenIncomingEdges;
+    acc += phase.durationSec;
+  }
+  return plan.phases[0]!.greenIncomingEdges; // numerical tail (t === cycle)
+}

@@ -8,6 +8,7 @@ import { useWorker } from './hooks/useWorker.ts';
 import { MapView, type MapMode } from './components/MapView.tsx';
 import { PlaybackBar } from './components/PlaybackBar.tsx';
 import { SetupBar } from './components/SetupBar.tsx';
+import { buildSignalMarkers } from './render/signal-layer.ts';
 
 interface SimConfig {
   readonly graph: RoadGraph;
@@ -62,6 +63,12 @@ export function App() {
     }
     return { minLon, minLat, maxLon, maxLat };
   }, [graph]);
+
+  // Signal markers for the running region (recomputed only when a run starts).
+  const signalData = useMemo(
+    () => (simConfig ? buildSignalMarkers(simConfig.graph) : null),
+    [simConfig],
+  );
 
   const [running, setRunning] = useState(false);
   const [renderFps, setRenderFps] = useState(0);
@@ -139,6 +146,7 @@ export function App() {
         mode={mode}
         selectionRect={selectionRect}
         dataExtent={dataExtent}
+        signalData={signalData}
         onSelectionChange={setSelectionRect}
         running={running}
         onStats={handleStats}
