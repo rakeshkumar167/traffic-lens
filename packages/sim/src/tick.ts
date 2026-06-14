@@ -1,5 +1,5 @@
 import type { Edge, EdgeId, Junction, SignalledJunction } from '@traffic-lens/shared';
-import { STATE_ACTIVE } from '@traffic-lens/shared';
+import { STATE_ACTIVE, SIGNAL_STOP_LINE_M } from '@traffic-lens/shared';
 import { ROAD_CLASS_SPEED_MPS } from '@traffic-lens/shared';
 import { idmAcceleration } from './idm.ts';
 import { advanceSignalState, isEdgeGreen } from './signals.ts';
@@ -116,7 +116,9 @@ function virtualLeaderFor(
     const state = world.signalStates.get(junction.id);
     if (!state) return null;
     if (isEdgeGreen(state, plan, incomingEdgeId)) return null;
-    return distToJunction;
+    // Stop at the stop line a few metres before the junction (where the red
+    // signal is drawn), not at the junction node itself.
+    return Math.max(0, distToJunction - SIGNAL_STOP_LINE_M);
   }
   // priority junction
   const priorityEdges = new Set(junction.priorityEdges);

@@ -1,19 +1,59 @@
-import { PolygonLayer } from '@deck.gl/layers';
+import { IconLayer } from '@deck.gl/layers';
 import type {
   EdgeId, JunctionId, Point2D, RoadGraph, SignalPlan,
 } from '@traffic-lens/shared';
-import { greenIncomingEdgesAt } from '@traffic-lens/sim';
+import { SIGNAL_STOP_LINE_M } from '@traffic-lens/shared';
+import { signalStateAt, type SignalColor } from '@traffic-lens/sim';
 import { webMercatorToLonLat } from './projection.ts';
 
-// Stop-bar placement/size in Web Mercator metres.
-const STOP_LINE_OFFSET_M = 6; // bar centre, back from the junction node
-const BAR_ACROSS_M = 7;       // width across the approach road
-const BAR_DEPTH_M = 3;        // thickness along the approach road
+const CLUSTER_RADIUS_M = 30;          // merge signal nodes of one intersection
+const DIRECTION_TOLERANCE = Math.PI / 4; // approaches within 45° = same direction
+const LANE_HALF_WIDTH_M = 1.6;         // half a lane's width
+const LEFT_MARGIN_M = 2.5;             // gap between road edge and the head
+const APPROACH_LOOKBACK_M = 15;        // average approach direction over this run
+
+// --- Portrait signal head (generated SVG, no asset files) ------------------
+// A black rounded box, taller than wide, that stands beside the road: stacked
+// straight / left / right arrows + a red lamp. Oriented so the top (straight)
+// arrow points along the approach's travel direction.
+const W = 36;
+const H = 120;
+const ARROW_OFF = '#2b2f37';
+const RED_OFF = '#3a1010';
+
+function svgUrl(svg: string): string {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
+function head(arrowColor: string, redColor: string): string {
+  const cx = W / 2;
+  const pl = (pts: string): string =>
+    `<polyline points='${pts}' fill='none' stroke='${arrowColor}' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>`;
+  const up = (cy: number): string => pl(`${cx},${cy + 8} ${cx},${cy - 8}`) + pl(`${cx - 6},${cy - 2} ${cx},${cy - 8} ${cx + 6},${cy - 2}`);
+  const left = (cy: number): string => pl(`${cx + 8},${cy} ${cx - 8},${cy}`) + pl(`${cx - 2},${cy - 6} ${cx - 8},${cy} ${cx - 2},${cy + 6}`);
+  const right = (cy: number): string => pl(`${cx - 8},${cy} ${cx + 8},${cy}`) + pl(`${cx + 2},${cy - 6} ${cx + 8},${cy} ${cx + 2},${cy + 6}`);
+  return svgUrl(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>`
+    + `<rect x='1' y='1' width='${W - 2}' height='${H - 2}' rx='9' fill='#0d0d14' stroke='#000' stroke-width='2'/>`
+    + up(26) + left(54) + right(82) + `<circle cx='${cx}' cy='104' r='8' fill='${redColor}'/>`
+    + `</svg>`,
+  );
+}
+function iconDef(arrowColor: string, redColor: string) {
+  return { url: head(arrowColor, redColor), width: W, height: H, anchorX: W / 2, anchorY: H / 2, mask: false };
+}
+const ICON_BY_STATE: Record<SignalColor, ReturnType<typeof iconDef>> = {
+  green: iconDef('#00C853', RED_OFF),
+  amber: iconDef('#FFB300', RED_OFF),
+  red: iconDef(ARROW_OFF, '#FF3B30'),
+};
+
+const AMBER_SEC = 3;
 
 export interface SignalMarker {
   readonly junctionId: JunctionId;
   readonly edgeId: EdgeId;
-  readonly polygon: number[][]; // ring of [lon, lat] corners
+  readonly position: [number, number]; // [lon, lat]
+  readonly heading: number;            // approach bearing (radians, CCW from east)
 }
 
 export interface SignalRenderData {
@@ -21,76 +61,144 @@ export interface SignalRenderData {
   readonly plans: Map<JunctionId, SignalPlan>;
 }
 
-// Oriented stop-bar rectangle at the junction end of an edge: a bar across the
-// road, set back a few metres from the node. Returns null for degenerate geometry.
-function stopBarPolygon(geometry: readonly Point2D[]): number[][] | null {
-  if (geometry.length < 2) return null;
-  const end = geometry[geometry.length - 1]!;
-  const prev = geometry[geometry.length - 2]!;
-  const dx = end.x - prev.x;
-  const dy = end.y - prev.y;
-  const len = Math.hypot(dx, dy);
-  if (len === 0) return null;
-  // Unit vector along the approach (toward the junction) and its perpendicular.
-  const ux = dx / len;
-  const uy = dy / len;
-  const px = -uy;
-  const py = ux;
-  const cx = end.x - ux * STOP_LINE_OFFSET_M;
-  const cy = end.y - uy * STOP_LINE_OFFSET_M;
-  const aw = BAR_ACROSS_M / 2;
-  const ad = BAR_DEPTH_M / 2;
-  const corner = (sAcross: number, sDepth: number): number[] => webMercatorToLonLat(
-    cx + px * aw * sAcross + ux * ad * sDepth,
-    cy + py * aw * sAcross + uy * ad * sDepth,
-  );
-  return [corner(1, 1), corner(-1, 1), corner(-1, -1), corner(1, -1)];
+type SignalledJunction = RoadGraph['junctions'][number] & { kind: 'signalled' };
+
+function angDist(a: number, b: number): number {
+  let d = Math.abs(a - b) % (2 * Math.PI);
+  if (d > Math.PI) d = 2 * Math.PI - d;
+  return d;
 }
 
-// Precompute (once per run) a stop-bar per incoming approach of each signalled
-// junction, plus the plan lookup used to colour them each frame.
-export function buildSignalMarkers(graph: RoadGraph): SignalRenderData {
-  const edgeById = new Map<EdgeId, RoadGraph['edges'][number]>(
-    graph.edges.map((e) => [e.id, e]),
-  );
-  const markers: SignalMarker[] = [];
-  const plans = new Map<JunctionId, SignalPlan>();
+// Greedily cluster signalled junctions within CLUSTER_RADIUS_M (Web Mercator m).
+function clusterJunctions(junctions: SignalledJunction[]): SignalledJunction[][] {
+  const used = new Set<JunctionId>();
+  const clusters: SignalledJunction[][] = [];
+  for (const a of junctions) {
+    if (used.has(a.id)) continue;
+    const group = [a];
+    used.add(a.id);
+    for (const b of junctions) {
+      if (used.has(b.id)) continue;
+      if (Math.hypot(a.position.x - b.position.x, a.position.y - b.position.y) <= CLUSTER_RADIUS_M) {
+        group.push(b);
+        used.add(b.id);
+      }
+    }
+    clusters.push(group);
+  }
+  return clusters;
+}
 
-  for (const j of graph.junctions) {
-    if (j.kind !== 'signalled') continue;
-    plans.set(j.id, j.defaultSignalPlan);
-    for (const edgeId of j.incomingEdges) {
-      const edge = edgeById.get(edgeId);
-      if (!edge) continue; // dropped by clipping
-      const polygon = stopBarPolygon(edge.geometry);
-      if (!polygon) continue;
-      markers.push({ junctionId: j.id, edgeId, polygon });
+interface Approach {
+  junctionId: JunctionId;
+  edgeId: EdgeId;
+  geometry: readonly Point2D[];
+  lanes: number;
+  bearing: number;
+  len: number;
+}
+
+// Unit direction of travel into the junction, averaged over the last
+// APPROACH_LOOKBACK_M of the polyline (more stable than the final segment), plus
+// the junction-end point.
+function approachVector(geometry: readonly Point2D[]): { ux: number; uy: number; end: Point2D } | null {
+  const end = geometry[geometry.length - 1]!;
+  let i = geometry.length - 2;
+  let from = geometry[i] ?? geometry[0]!;
+  let accum = 0;
+  while (i > 0 && accum < APPROACH_LOOKBACK_M) {
+    const a = geometry[i]!;
+    const b = geometry[i + 1]!;
+    accum += Math.hypot(b.x - a.x, b.y - a.y);
+    from = a;
+    i--;
+  }
+  const dx = end.x - from.x;
+  const dy = end.y - from.y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return null;
+  return { ux: dx / len, uy: dy / len, end };
+}
+
+function markerFor(rep: Approach): SignalMarker | null {
+  const v = approachVector(rep.geometry);
+  if (!v) return null;
+  const { ux, uy, end } = v;
+  // Left of travel direction (CCW) — India left-hand traffic — offset clear of
+  // the carriageway (wider roads push the head further out).
+  const lx = -uy;
+  const ly = ux;
+  const offset = rep.lanes * LANE_HALF_WIDTH_M + LEFT_MARGIN_M;
+  const x = end.x - ux * SIGNAL_STOP_LINE_M + lx * offset;
+  const y = end.y - uy * SIGNAL_STOP_LINE_M + ly * offset;
+  return {
+    junctionId: rep.junctionId,
+    edgeId: rep.edgeId,
+    position: webMercatorToLonLat(x, y),
+    heading: Math.atan2(uy, ux),
+  };
+}
+
+// One signal head per approach direction of each clustered intersection.
+export function buildSignalMarkers(graph: RoadGraph): SignalRenderData {
+  const edgeById = new Map<EdgeId, RoadGraph['edges'][number]>(graph.edges.map((e) => [e.id, e]));
+  const signalled = graph.junctions.filter((j): j is SignalledJunction => j.kind === 'signalled');
+  const plans = new Map<JunctionId, SignalPlan>(signalled.map((j) => [j.id, j.defaultSignalPlan]));
+
+  const markers: SignalMarker[] = [];
+  for (const cluster of clusterJunctions(signalled)) {
+    const approaches: Approach[] = [];
+    for (const j of cluster) {
+      for (const eid of j.incomingEdges) {
+        const e = edgeById.get(eid);
+        if (!e || e.geometry.length < 2) continue;
+        const v = approachVector(e.geometry);
+        if (!v) continue;
+        approaches.push({
+          junctionId: j.id, edgeId: eid, geometry: e.geometry, lanes: e.lanes, len: e.lengthM,
+          bearing: Math.atan2(v.uy, v.ux),
+        });
+      }
+    }
+    // Group approaches by direction; one head (the longest approach) per group.
+    const groups: Approach[][] = [];
+    for (const a of approaches) {
+      const g = groups.find((grp) => angDist(grp[0]!.bearing, a.bearing) <= DIRECTION_TOLERANCE);
+      if (g) g.push(a);
+      else groups.push([a]);
+    }
+    for (const grp of groups) {
+      const rep = grp.reduce((m, x) => (x.len > m.len ? x : m), grp[0]!);
+      const marker = markerFor(rep);
+      if (marker) markers.push(marker);
     }
   }
   return { markers, plans };
 }
 
-const GREEN: [number, number, number, number] = [31, 191, 90, 235];
-const RED: [number, number, number, number] = [220, 45, 40, 235];
-
-export function buildSignalLayer(
+export function buildSignalLayers(
   data: SignalRenderData,
   simSec: number,
-): PolygonLayer<SignalMarker> {
-  // Green edge set per junction, computed once per frame.
-  const greenByJunction = new Map<JunctionId, Set<EdgeId>>();
-  for (const [jid, plan] of data.plans) {
-    greenByJunction.set(jid, new Set(greenIncomingEdgesAt(plan, simSec)));
-  }
-  return new PolygonLayer<SignalMarker>({
-    id: 'signals',
-    data: data.markers,
-    getPolygon: (d) => d.polygon,
-    stroked: true,
-    filled: true,
-    lineWidthMinPixels: 1,
-    getLineColor: [10, 10, 20, 230],
-    getFillColor: (d) => (greenByJunction.get(d.junctionId)?.has(d.edgeId) ? GREEN : RED),
-    updateTriggers: { getFillColor: simSec },
-  });
+): IconLayer<SignalMarker>[] {
+  const stateOf = (m: SignalMarker): SignalColor => {
+    const plan = data.plans.get(m.junctionId);
+    return plan ? signalStateAt(plan, m.edgeId, simSec, AMBER_SEC) : 'red';
+  };
+  return [
+    new IconLayer<SignalMarker>({
+      id: 'signals',
+      data: data.markers,
+      getIcon: (m) => ICON_BY_STATE[stateOf(m)],
+      getPosition: (m) => m.position,
+      // Up (straight arrow) points along the approach's travel direction, so the
+      // portrait box stands along the road.
+      getAngle: (m) => (m.heading * 180) / Math.PI - 90,
+      sizeUnits: 'meters',
+      getSize: 7,
+      sizeMinPixels: 14,
+      sizeMaxPixels: 40,
+      billboard: true,
+      updateTriggers: { getIcon: simSec },
+    }),
+  ];
 }

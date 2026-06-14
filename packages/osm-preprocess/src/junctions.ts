@@ -34,6 +34,12 @@ export function buildJunctions(
   const edgeById = new Map<EdgeId, Edge>();
   for (const e of edges) edgeById.set(e.id, e);
 
+  // Nearby signalled nodes (e.g. the several nodes of a divided-road crossroad)
+  // share a phase axis so they run as one coordinated intersection.
+  const sharedAxisByNode = clusterSharedAxes(
+    parsed, junctionNodeIds, incomingByJunction, outgoingByJunction, edgeById,
+  );
+
   const junctions: Junction[] = [];
   for (const nodeId of junctionNodeIds) {
     const node = parsed.nodes.get(nodeId);
@@ -55,7 +61,7 @@ export function buildJunctions(
         incomingEdges,
         outgoingEdges,
         connections,
-        defaultSignalPlan: defaultSignalPlanFor(incomingEdges, edgeById),
+        defaultSignalPlan: defaultSignalPlanFor(incomingEdges, edgeById, sharedAxisByNode.get(nodeId)),
       };
       junctions.push(signalled);
     } else {
@@ -172,6 +178,61 @@ function shouldSignalise(
     && maxApproachRank(incomingEdges, outgoingEdges, edgeById) >= MIN_SIGNAL_RANK;
 }
 
+const SIGNAL_CLUSTER_RADIUS_M = 30;
+
+// Cluster signalled nodes within SIGNAL_CLUSTER_RADIUS_M and assign each a shared
+// phase axis (the axis of the cluster's highest-class incoming edge), so a
+// divided-road intersection split across several nodes runs as one signal.
+function clusterSharedAxes(
+  parsed: ParsedOsm,
+  junctionNodeIds: ReadonlySet<number>,
+  incomingByJunction: ReadonlyMap<JunctionId, EdgeId[]>,
+  outgoingByJunction: ReadonlyMap<JunctionId, EdgeId[]>,
+  edgeById: ReadonlyMap<EdgeId, Edge>,
+): Map<JunctionId, number> {
+  interface Node { id: JunctionId; x: number; y: number; incoming: readonly EdgeId[]; }
+  const signalled: Node[] = [];
+  for (const nodeId of junctionNodeIds) {
+    const incoming = incomingByJunction.get(nodeId) ?? [];
+    const outgoing = outgoingByJunction.get(nodeId) ?? [];
+    if (!shouldSignalise(incoming, outgoing, edgeById)) continue;
+    const node = parsed.nodes.get(nodeId);
+    if (!node) continue;
+    const { x, y } = lonLatToWebMercator(node.lon, node.lat);
+    signalled.push({ id: nodeId, x, y, incoming });
+  }
+
+  const out = new Map<JunctionId, number>();
+  const used = new Set<JunctionId>();
+  for (const a of signalled) {
+    if (used.has(a.id)) continue;
+    const group = [a];
+    used.add(a.id);
+    for (const b of signalled) {
+      if (used.has(b.id)) continue;
+      if (Math.hypot(a.x - b.x, a.y - b.y) <= SIGNAL_CLUSTER_RADIUS_M) {
+        group.push(b);
+        used.add(b.id);
+      }
+    }
+    // Axis of the cluster's highest-class incoming edge defines the main road.
+    let bestRank = -Infinity;
+    let axis = 0;
+    for (const n of group) {
+      for (const eid of n.incoming) {
+        const e = edgeById.get(eid)!;
+        const rank = ROAD_CLASS_PRIORITY_RANK[e.roadClass];
+        if (rank > bestRank) {
+          bestRank = rank;
+          axis = ((approachBearing(e) % Math.PI) + Math.PI) % Math.PI;
+        }
+      }
+    }
+    for (const n of group) out.set(n.id, axis);
+  }
+  return out;
+}
+
 // Green seconds per phase, scaled by the junction's biggest approach road class
 // (bigger/arterial junctions get longer greens).
 export function greenSecForRank(rank: number): number {
@@ -196,6 +257,7 @@ function approachBearing(edge: Edge): number {
 export function groupApproachesByAxis(
   incomingEdges: readonly EdgeId[],
   edgeById: ReadonlyMap<EdgeId, Edge>,
+  refAxis?: number,
 ): [EdgeId[], EdgeId[]] {
   const phaseA: EdgeId[] = [];
   const phaseB: EdgeId[] = [];
@@ -206,7 +268,11 @@ export function groupApproachesByAxis(
     if (ax < 0) ax += Math.PI; // fold to [0, π)
     return ax;
   };
-  const ref = axisOf(incomingEdges[0]!);
+  // A shared reference axis lets all nodes in a clustered intersection agree on
+  // which approaches share a phase; otherwise fall back to the first approach.
+  const ref = refAxis !== undefined
+    ? ((refAxis % Math.PI) + Math.PI) % Math.PI
+    : axisOf(incomingEdges[0]!);
   for (const id of incomingEdges) {
     let d = Math.abs(axisOf(id) - ref);
     if (d > Math.PI / 2) d = Math.PI - d; // axis distance folds to [0, π/2]
@@ -219,9 +285,10 @@ export function groupApproachesByAxis(
 function defaultSignalPlanFor(
   incomingEdges: readonly EdgeId[],
   edgeById: ReadonlyMap<EdgeId, Edge>,
+  refAxis?: number,
 ): SignalPlan {
   if (incomingEdges.length === 0) return { cycleSec: 0, phases: [] };
-  const [phaseA, phaseB] = groupApproachesByAxis(incomingEdges, edgeById);
+  const [phaseA, phaseB] = groupApproachesByAxis(incomingEdges, edgeById, refAxis);
   let maxRank = -Infinity;
   for (const id of incomingEdges) {
     maxRank = Math.max(maxRank, ROAD_CLASS_PRIORITY_RANK[edgeById.get(id)!.roadClass]);

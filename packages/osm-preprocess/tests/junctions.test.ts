@@ -152,6 +152,22 @@ describe('groupApproachesByAxis', () => {
   it('returns empty groups when there are no approaches', () => {
     expect(groupApproachesByAxis([], new Map())).toEqual([[], []]);
   });
+
+  it('honours an explicit shared reference axis', () => {
+    const byId = new Map<EdgeId, Edge>([
+      [1, mkEdge(1, [{ x: 0, y: 100 }, { x: 0, y: 0 }])],  // N (axis ≈ π/2)
+      [2, mkEdge(2, [{ x: 100, y: 0 }, { x: 0, y: 0 }])],  // E (axis ≈ 0)
+      [3, mkEdge(3, [{ x: 0, y: -100 }, { x: 0, y: 0 }])], // S (axis ≈ π/2)
+      [4, mkEdge(4, [{ x: -100, y: 0 }, { x: 0, y: 0 }])], // W (axis ≈ 0)
+    ]);
+    // Force the E–W axis (0) as reference → E and W in phase A, N and S in phase B.
+    const [a] = groupApproachesByAxis([1, 2, 3, 4], byId, 0);
+    const inA = new Set(a);
+    expect(inA.has(2)).toBe(true);
+    expect(inA.has(4)).toBe(true);
+    expect(inA.has(1)).toBe(false);
+    expect(inA.has(3)).toBe(false);
+  });
 });
 
 describe('greenSecForRank', () => {

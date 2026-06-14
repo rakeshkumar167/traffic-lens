@@ -8,7 +8,7 @@ import { INITIAL_VIEW, BASE_STYLE } from '../config/map.ts';
 import { useFrameLoop } from '../hooks/useFrameLoop.ts';
 import { createSnapshot, updateSnapshotAndAlpha } from '../render/interpolation.ts';
 import { buildVehicleLayer } from '../render/vehicle-layer.ts';
-import { buildSignalLayer, type SignalRenderData } from '../render/signal-layer.ts';
+import { buildSignalLayers, type SignalRenderData } from '../render/signal-layer.ts';
 import { buildEntryLayer, type EntryMarker } from '../render/entry-points.ts';
 import type { EdgeId } from '@traffic-lens/shared';
 
@@ -129,7 +129,7 @@ export function MapView({
           ...(guideLayer ? [guideLayer] : []),
           ...(selectionRect ? [buildSelectionLayer(selectionRect)] : []),
           buildVehicleLayer({ views, snapshot, alpha, layerId: 'vehicles' }),
-          ...(signalData ? [buildSignalLayer(signalData, simSec)] : []),
+          ...(signalData ? buildSignalLayers(signalData, simSec) : []),
         ],
       });
     },

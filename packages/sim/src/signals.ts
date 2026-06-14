@@ -64,3 +64,18 @@ export function greenIncomingEdgesAt(plan: SignalPlan, simSec: number): readonly
   }
   return plan.phases[0]!.greenIncomingEdges; // numerical tail (t === cycle)
 }
+
+export type SignalColor = 'green' | 'amber' | 'red';
+
+// Display state for one approach: green if it has right-of-way and keeps it for
+// at least `amberSec`; amber if green now but about to lose it; red otherwise.
+// Amber is derived purely from the cycle timing — no engine/plan change.
+export function signalStateAt(
+  plan: SignalPlan,
+  edgeId: EdgeId,
+  simSec: number,
+  amberSec: number,
+): SignalColor {
+  if (!greenIncomingEdgesAt(plan, simSec).includes(edgeId)) return 'red';
+  return greenIncomingEdgesAt(plan, simSec + amberSec).includes(edgeId) ? 'green' : 'amber';
+}

@@ -5,6 +5,7 @@ import {
   advanceSignalState,
   isEdgeGreen,
   greenIncomingEdgesAt,
+  signalStateAt,
 } from '../src/signals.ts';
 
 const PLAN: SignalPlan = {
@@ -78,6 +79,17 @@ describe('signals', () => {
 
     it('returns [] for an empty plan', () => {
       expect(greenIncomingEdgesAt({ cycleSec: 60, phases: [] }, 5)).toEqual([]);
+    });
+  });
+
+  describe('signalStateAt', () => {
+    const amber = 3;
+    it('is green mid-phase, amber in the last few seconds, red otherwise', () => {
+      expect(signalStateAt(PLAN, 10, 0, amber)).toBe('green');   // start of A's green
+      expect(signalStateAt(PLAN, 10, 28, amber)).toBe('amber');  // A ends at 30 → within amber
+      expect(signalStateAt(PLAN, 10, 35, amber)).toBe('red');    // phase B
+      expect(signalStateAt(PLAN, 20, 0, amber)).toBe('red');     // B not green yet
+      expect(signalStateAt(PLAN, 20, 58, amber)).toBe('amber');  // B ends at 60 (wraps) → amber
     });
 
     it('agrees with advanceSignalState + isEdgeGreen at sampled times', () => {

@@ -132,6 +132,12 @@ export const ROAD_CLASS_DEFAULT_LANES: Readonly<Record<RoadClass, number>> = {
   service: 1,
 };
 
+// Distance (metres) before a junction at which vehicles stop for a red signal,
+// and where the signal head is drawn. Keeps the sim's stop point and the on-map
+// mark aligned so vehicles halt at the red, not past it. Set back ~one signal
+// length from the junction so the head sits clearly on the approach.
+export const SIGNAL_STOP_LINE_M = 12;
+
 // Priority ranking for priority-yield junctions. Higher value = higher priority.
 export const ROAD_CLASS_PRIORITY_RANK: Readonly<Record<RoadClass, number>> = {
   primary: 6,
