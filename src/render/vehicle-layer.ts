@@ -1,15 +1,32 @@
-import { ScatterplotLayer } from '@deck.gl/layers';
+import { IconLayer } from '@deck.gl/layers';
 import {
   MAX_VEHICLES, STATE_ACTIVE, type SabViews,
 } from '@traffic-lens/shared';
 import type { InterpSnapshot } from './interpolation.ts';
 import { webMercatorToLonLat } from './projection.ts';
+import carAtlas from '../car-sprite.png';
+
+// Sub-image bounding boxes within src/car-sprite.png (1536×1024), one per car.
+const CARS = [
+  { name: 'red', x: 180, y: 60, width: 200, height: 440 },
+  { name: 'blue', x: 450, y: 60, width: 200, height: 440 },
+  { name: 'white', x: 720, y: 60, width: 220, height: 450 },
+  { name: 'yellow', x: 1010, y: 60, width: 220, height: 440 },
+  { name: 'black', x: 180, y: 540, width: 210, height: 410 },
+  { name: 'silver', x: 450, y: 540, width: 220, height: 410 },
+  { name: 'green', x: 730, y: 550, width: 210, height: 390 },
+  { name: 'orange', x: 1010, y: 540, width: 230, height: 410 },
+] as const;
+
+const ICON_MAPPING = Object.fromEntries(CARS.map((c) => [
+  c.name,
+  { x: c.x, y: c.y, width: c.width, height: c.height, anchorX: c.width / 2, anchorY: c.height / 2, mask: false },
+]));
+const CAR_NAMES = CARS.map((c) => c.name);
 
 interface VehicleDatum {
   readonly slotIdx: number;
 }
-
-const DATA: VehicleDatum[] = Array.from({ length: MAX_VEHICLES }, (_, i) => ({ slotIdx: i }));
 
 interface BuildArgs {
   readonly views: SabViews;
@@ -18,22 +35,28 @@ interface BuildArgs {
   readonly layerId: string;
 }
 
-export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs): ScatterplotLayer<VehicleDatum> {
-  return new ScatterplotLayer<VehicleDatum>({
+export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs): IconLayer<VehicleDatum> {
+  // Only feed active vehicles to the IconLayer — rendering all 2000 slots per
+  // frame is far too expensive for icons (unlike the old circle layer) and
+  // leaves it unable to finish, so most icons never draw.
+  const data: VehicleDatum[] = [];
+  for (let i = 0; i < MAX_VEHICLES; i++) {
+    if (views.state[i] === STATE_ACTIVE) data.push({ slotIdx: i });
+  }
+  return new IconLayer<VehicleDatum>({
     id: layerId,
-    data: DATA,
+    data,
     pickable: false,
-    radiusUnits: 'meters',
-    // Real-world car footprint is ~2.5 m wide, but at zoom 15 that's
-    // sub-pixel. Clamp to a visible screen-pixel range so vehicles are
-    // always discoverable at any zoom level.
-    radiusMinPixels: 4,
-    radiusMaxPixels: 14,
-    stroked: true,
-    lineWidthMinPixels: 1,
-    getLineColor: [10, 10, 20, 220],
-    getRadius: (d: VehicleDatum) =>
-      views.state[d.slotIdx] === STATE_ACTIVE ? 3.5 : 0,
+    iconAtlas: carAtlas,
+    iconMapping: ICON_MAPPING,
+    // Stable per-slot car variant so the fleet looks varied.
+    getIcon: (d: VehicleDatum) => CAR_NAMES[d.slotIdx % CAR_NAMES.length]!,
+    // Icon height ≈ a car length; clamp to visible pixels at any zoom.
+    sizeUnits: 'meters',
+    getSize: 6,
+    sizeMinPixels: 14,
+    sizeMaxPixels: 48,
+    billboard: true,
     getPosition: (d: VehicleDatum) => {
       const i = d.slotIdx;
       const x = snapshot.posX[i]! + (views.posX[i]! - snapshot.posX[i]!) * alpha;
@@ -41,25 +64,13 @@ export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs
       const [lon, lat] = webMercatorToLonLat(x, y);
       return [lon, lat];
     },
-    getFillColor: (d: VehicleDatum) => {
-      // Colour by speed (m/s) on a red → amber → blue ramp.
-      // 0 m/s = red (stopped), ~7 m/s = amber (mid), 14 m/s = #1F75FE (free-flow).
-      const speed = views.speed[d.slotIdx]!;
-      const t = Math.max(0, Math.min(1, speed / 14));
-      const lerp = (a: number, b: number, u: number) => Math.round(a + (b - a) * u);
-      if (t < 0.5) {
-        // red (220,45,40) → amber (255,176,0)
-        const u = t / 0.5;
-        return [lerp(220, 255, u), lerp(45, 176, u), lerp(40, 0, u), 230];
-      }
-      // amber (255,176,0) → blue #1F75FE (31,117,254)
-      const u = (t - 0.5) / 0.5;
-      return [lerp(255, 31, u), lerp(176, 117, u), lerp(0, 254, u), 230];
-    },
+    // heading is radians CCW from east; sprites point up (north), so subtract 90°
+    // to align the car's nose with its travel direction.
+    getAngle: (d: VehicleDatum) => (views.heading[d.slotIdx]! * 180) / Math.PI - 90,
     updateTriggers: {
-      getRadius: alpha,
       getPosition: alpha,
-      getFillColor: alpha,
+      getAngle: alpha,
+      getSize: alpha,
     },
   });
 }

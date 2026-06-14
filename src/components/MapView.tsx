@@ -89,7 +89,11 @@ export function MapView({ views, mode, selectionRect, dataExtent, signalData, on
       zoom: INITIAL_VIEW.zoom,
       pitch: INITIAL_VIEW.pitch,
       bearing: INITIAL_VIEW.bearing,
+      // Default attribution sits bottom-right, under the full-width playback bar.
+      // Move it to the top-right (compact) so it stays visible but clear.
+      attributionControl: false,
     });
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'top-right');
     mapRef.current = map;
 
     const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
