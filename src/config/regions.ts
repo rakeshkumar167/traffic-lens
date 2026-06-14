@@ -15,6 +15,17 @@ export const REGIONS: readonly Region[] = [
   { key: 'mg-road', label: 'MG Road / CBD', file: 'mg-road.graph.json' },
   { key: 'whitefield', label: 'Whitefield', file: 'whitefield.graph.json' },
   { key: 'btm-layout', label: 'BTM Layout', file: 'btm-layout.graph.json' },
+  { key: 'malleshwaram', label: 'Malleshwaram', file: 'malleshwaram.graph.json' },
+  { key: 'rajajinagar', label: 'Rajajinagar', file: 'rajajinagar.graph.json' },
+  { key: 'shivajinagar', label: 'Shivajinagar', file: 'shivajinagar.graph.json' },
+  { key: 'marathahalli', label: 'Marathahalli', file: 'marathahalli.graph.json' },
+  { key: 'bellandur', label: 'Bellandur', file: 'bellandur.graph.json' },
+  { key: 'hebbal', label: 'Hebbal', file: 'hebbal.graph.json' },
+  { key: 'kr-puram', label: 'KR Puram', file: 'kr-puram.graph.json' },
+  { key: 'electronic-city', label: 'Electronic City', file: 'electronic-city.graph.json' },
+  { key: 'jp-nagar', label: 'JP Nagar', file: 'jp-nagar.graph.json' },
+  { key: 'banashankari', label: 'Banashankari', file: 'banashankari.graph.json' },
+  { key: 'domlur', label: 'Domlur', file: 'domlur.graph.json' },
 ];
 
 export const DEFAULT_REGION = REGIONS[0]!;
