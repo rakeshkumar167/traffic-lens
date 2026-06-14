@@ -23,10 +23,12 @@ export function buildEntryMarkers(graph: RoadGraph, entryEdgeIds: readonly EdgeI
   return markers;
 }
 
-const SELECTED_FILL: [number, number, number, number] = [31, 191, 90, 235];
-const SELECTED_LINE: [number, number, number, number] = [20, 120, 40, 255];
-const AVAILABLE_FILL: [number, number, number, number] = [255, 210, 70, 60];
-const AVAILABLE_LINE: [number, number, number, number] = [255, 210, 70, 255];
+// Candidate spawn points use a vivid, opaque colour (faded yellow read poorly);
+// selected ones flip to green. White rings keep both legible on the basemap.
+const SELECTED_FILL: [number, number, number, number] = [40, 200, 90, 245];
+const SELECTED_LINE: [number, number, number, number] = [255, 255, 255, 245];
+const AVAILABLE_FILL: [number, number, number, number] = [255, 45, 120, 225]; // vivid pink/magenta
+const AVAILABLE_LINE: [number, number, number, number] = [255, 255, 255, 235];
 
 export function buildEntryLayer(
   markers: EntryMarker[],
@@ -40,7 +42,7 @@ export function buildEntryLayer(
     pickable: true,
     radiusUnits: 'pixels',
     getPosition: (d) => d.position,
-    getRadius: (d) => (selected.has(d.edgeId) ? 9 : 7),
+    getRadius: (d) => (selected.has(d.edgeId) ? 10 : 8),
     stroked: true,
     lineWidthMinPixels: 2,
     getLineColor: (d) => (selected.has(d.edgeId) ? SELECTED_LINE : AVAILABLE_LINE),

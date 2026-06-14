@@ -66,11 +66,29 @@ COOP/`credentialless` COEP headers, and the Vite build copies `data/*.json` into
 `dist/data/` so the app can fetch the graph at runtime. Pushing to `main` triggers
 an automatic deploy.
 
-## Generating the road graph
+## Regions / generating road graphs
 
-The network is preprocessed offline from an OpenStreetMap extract into
-`data/koramangala.graph.json` (Web Mercator / EPSG:3857 geometry, junctions,
-and signal plans). See `packages/osm-preprocess/README.md`.
+Each region is preprocessed **offline** from an OpenStreetMap extract into
+`data/<area>.graph.json` (Web Mercator / EPSG:3857 geometry, junctions, and
+signal plans) — pure local code, no API keys or LLM tokens. The app ships
+several Bangalore areas (Koramangala, Indiranagar, HSR Layout, Jayanagar,
+MG Road, Whitefield, BTM Layout), selectable from the navbar **Area** dropdown.
+
+To add an area:
+
+1. Add an entry to `src/config/regions.ts` (`key`, `label`, `file`).
+2. Fetch + preprocess it. `scripts/fetch-regions.sh` does this for the bundled
+   areas (Overpass download → `osm-preprocess` CLI); adapt the bbox list, or run
+   the CLI directly:
+   ```
+   pnpm -F @traffic-lens/osm-preprocess exec tsx src/cli.ts \
+     --in data/raw/<area>.osm --out data/<area>.graph.json \
+     --bbox <minLon,minLat,maxLon,maxLat>
+   ```
+3. The Vite build copies `data/*.json` into `dist/data/` automatically.
+
+Each graph is ~3–5 MB JSON (~0.3–0.45 MB gzipped); only the selected region is
+loaded at a time. See `packages/osm-preprocess/README.md` for CLI details.
 
 ## Architecture
 

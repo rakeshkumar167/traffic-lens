@@ -1,13 +1,29 @@
+import { REGIONS } from '../config/regions.ts';
+
 export interface NavbarProps {
+  readonly regionKey: string;
+  readonly onRegionChange: (key: string) => void;
   readonly showReset: boolean;
   readonly onReset: () => void;
   readonly onHelp: () => void;
 }
 
-export function Navbar({ showReset, onReset, onHelp }: NavbarProps) {
+export function Navbar({ regionKey, onRegionChange, showReset, onReset, onHelp }: NavbarProps) {
   return (
     <div style={bar}>
       <strong style={{ fontSize: 15, letterSpacing: 0.2 }}>Traffic Simulator — Bangalore</strong>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 4 }}>
+        <span style={{ opacity: 0.7 }}>Area:</span>
+        <select
+          value={regionKey}
+          onChange={(e) => onRegionChange(e.target.value)}
+          style={select}
+        >
+          {REGIONS.map((r) => (
+            <option key={r.key} value={r.key}>{r.label}</option>
+          ))}
+        </select>
+      </label>
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
         {showReset && (
           <button onClick={onReset} style={btn}>Reset region</button>
@@ -35,6 +51,11 @@ const bar: React.CSSProperties = {
 
 const btn: React.CSSProperties = {
   padding: '6px 12px', background: '#1f2934', color: '#e8eef5',
+  border: '1px solid #2a3340', borderRadius: 4, cursor: 'pointer', fontSize: 13,
+};
+
+const select: React.CSSProperties = {
+  padding: '5px 8px', background: '#1f2934', color: '#e8eef5',
   border: '1px solid #2a3340', borderRadius: 4, cursor: 'pointer', fontSize: 13,
 };
 

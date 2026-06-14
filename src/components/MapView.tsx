@@ -216,6 +216,20 @@ export function MapView({
     };
   }, [mode, selectionRect, guideLayer, entryMarkers, selectedEntryIds, onToggleEntry, onSelectionChange]);
 
+  // Frame the map to the loaded area's extent when it changes (e.g. switching
+  // region) while setting up, so the new area fills the view.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || mode !== 'drawing' || !dataExtent) return;
+    map.fitBounds(
+      [
+        [dataExtent.minLon, dataExtent.minLat],
+        [dataExtent.maxLon, dataExtent.maxLat],
+      ],
+      { padding: 40, duration: 600 },
+    );
+  }, [dataExtent, mode]);
+
   // On entering running mode, frame the map to the selected region so the user
   // is looking exactly where vehicles enter (they spawn at the region's edges).
   useEffect(() => {

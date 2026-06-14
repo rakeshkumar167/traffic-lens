@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { STATE_ACTIVE, MAX_VEHICLES } from '@traffic-lens/shared';
 import type { BoundingBox, Demand, EdgeId, RoadGraph, SabViews } from '@traffic-lens/shared';
 import { clipGraph, buildDemand } from '@traffic-lens/sim';
-import { loadAssets } from './state/assets.ts';
+import { loadGraph } from './state/assets.ts';
 import { allocateSimSab } from './state/sab.ts';
 import { useWorker } from './hooks/useWorker.ts';
 import { MapView, type MapMode } from './components/MapView.tsx';
@@ -10,10 +10,11 @@ import { PlaybackBar } from './components/PlaybackBar.tsx';
 import { SetupBar } from './components/SetupBar.tsx';
 import { Navbar } from './components/Navbar.tsx';
 import { HelpModal } from './components/HelpModal.tsx';
-
-const HELP_SEEN_KEY = 'traffic-lens-help-seen';
 import { buildSignalMarkers } from './render/signal-layer.ts';
 import { buildEntryMarkers } from './render/entry-points.ts';
+import { DEFAULT_REGION, regionByKey } from './config/regions.ts';
+
+const HELP_SEEN_KEY = 'traffic-lens-help-seen';
 
 interface SimConfig {
   readonly graph: RoadGraph;
@@ -26,21 +27,25 @@ export function App() {
   const [graph, setGraph] = useState<RoadGraph | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [regionKey, setRegionKey] = useState(DEFAULT_REGION.key);
   const [mode, setMode] = useState<MapMode>('drawing');
   const [selectionRect, setSelectionRect] = useState<BoundingBox | null>(null);
   const [selectedEntryIds, setSelectedEntryIds] = useState<EdgeId[]>([]);
   const [intensity, setIntensity] = useState(800);
   const [simConfig, setSimConfig] = useState<SimConfig | null>(null);
 
+  // Load the selected region's graph (re-runs when the region changes).
   useEffect(() => {
     let cancelled = false;
-    loadAssets()
-      .then((a) => { if (!cancelled) setGraph(a.graph); })
+    setGraph(null);
+    setLoadError(null);
+    loadGraph(regionByKey(regionKey).file)
+      .then((g) => { if (!cancelled) setGraph(g); })
       .catch((err) => {
         if (!cancelled) setLoadError(err instanceof Error ? err.message : String(err));
       });
     return () => { cancelled = true; };
-  }, []);
+  }, [regionKey]);
 
   const worker = useWorker({
     graph: simConfig?.graph ?? null,
@@ -136,6 +141,16 @@ export function App() {
     setRunning(false);
   }, []);
 
+  // Switching region resets the setup and loads the new area's graph.
+  const handleRegionChange = useCallback((key: string) => {
+    setRegionKey(key);
+    setSimConfig(null);
+    setMode('drawing');
+    setSelectionRect(null);
+    setSelectedEntryIds([]);
+    setRunning(false);
+  }, []);
+
   // Auto-play once the worker for a started region is ready.
   useEffect(() => {
     if (mode === 'running' && workerReady) {
@@ -184,6 +199,8 @@ export function App() {
   return (
     <>
       <Navbar
+        regionKey={regionKey}
+        onRegionChange={handleRegionChange}
         showReset={mode === 'running'}
         onReset={handleReset}
         onHelp={() => setHelpOpen(true)}
@@ -201,6 +218,17 @@ export function App() {
         running={running}
         onStats={handleStats}
       />
+      {mode === 'drawing' && (
+        <div style={hintStyle}>
+          {selectionRect === null
+            ? 'Drag on the map to draw a region'
+            : (entryMarkers?.length ?? 0) === 0
+              ? 'No roads cross this region — draw a larger box'
+              : selectedEntryIds.length === 0
+                ? 'Tap the pink points to choose where vehicles enter'
+                : `${selectedEntryIds.length} spawn point${selectedEntryIds.length > 1 ? 's' : ''} selected — tap more, or press Start`}
+        </div>
+      )}
       {mode === 'drawing' ? (
         <SetupBar
           hasSelection={selectionRect !== null}
@@ -228,3 +256,10 @@ export function App() {
     </>
   );
 }
+
+const hintStyle: React.CSSProperties = {
+  position: 'absolute', top: 56, left: '50%', transform: 'translateX(-50%)',
+  zIndex: 3, padding: '8px 16px', maxWidth: '90vw', textAlign: 'center',
+  background: 'rgba(0, 90, 156, 0.92)', color: '#fff', fontSize: 14, fontWeight: 600,
+  borderRadius: 999, boxShadow: '0 4px 14px rgba(0,0,0,0.35)', pointerEvents: 'none',
+};
