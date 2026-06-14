@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { STATE_ACTIVE, MAX_VEHICLES } from '@traffic-lens/shared';
-import type { BoundingBox, Demand, RoadGraph, SabViews } from '@traffic-lens/shared';
+import type { BoundingBox, Demand, EdgeId, RoadGraph, SabViews } from '@traffic-lens/shared';
 import { clipGraph, buildDemand } from '@traffic-lens/sim';
 import { loadAssets } from './state/assets.ts';
 import { allocateSimSab } from './state/sab.ts';
@@ -9,6 +9,7 @@ import { MapView, type MapMode } from './components/MapView.tsx';
 import { PlaybackBar } from './components/PlaybackBar.tsx';
 import { SetupBar } from './components/SetupBar.tsx';
 import { buildSignalMarkers } from './render/signal-layer.ts';
+import { buildEntryMarkers } from './render/entry-points.ts';
 
 interface SimConfig {
   readonly graph: RoadGraph;
@@ -23,6 +24,7 @@ export function App() {
 
   const [mode, setMode] = useState<MapMode>('drawing');
   const [selectionRect, setSelectionRect] = useState<BoundingBox | null>(null);
+  const [selectedEntryIds, setSelectedEntryIds] = useState<EdgeId[]>([]);
   const [intensity, setIntensity] = useState(800);
   const [simConfig, setSimConfig] = useState<SimConfig | null>(null);
 
@@ -64,6 +66,29 @@ export function App() {
     return { minLon, minLat, maxLon, maxLat };
   }, [graph]);
 
+  // Candidate spawn points for the current selection (highlighted for picking).
+  const entryMarkers = useMemo(
+    () => (clip ? buildEntryMarkers(clip.graph, clip.entryEdgeIds) : null),
+    [clip],
+  );
+
+  // Drawing a new box replaces the selection and clears any picked spawn points.
+  const handleSelectionChange = useCallback((bbox: BoundingBox) => {
+    setSelectionRect(bbox);
+    setSelectedEntryIds([]);
+  }, []);
+
+  const handleToggleEntry = useCallback((edgeId: EdgeId) => {
+    setSelectedEntryIds((prev) => (
+      prev.includes(edgeId) ? prev.filter((id) => id !== edgeId) : [...prev, edgeId]
+    ));
+  }, []);
+
+  const handleRedraw = useCallback(() => {
+    setSelectionRect(null);
+    setSelectedEntryIds([]);
+  }, []);
+
   // Signal markers for the running region (recomputed only when a run starts).
   const signalData = useMemo(
     () => (simConfig ? buildSignalMarkers(simConfig.graph) : null),
@@ -80,17 +105,18 @@ export function App() {
   }, []);
 
   const handleStart = useCallback(() => {
-    if (!clip || clip.entryEdgeIds.length === 0 || clip.exitEdgeIds.length === 0) return;
+    if (!clip || selectedEntryIds.length === 0 || clip.exitEdgeIds.length === 0) return;
     const sim = allocateSimSab();
-    const demand = buildDemand(clip.entryEdgeIds, clip.exitEdgeIds, intensity, 42);
+    const demand = buildDemand(selectedEntryIds, clip.exitEdgeIds, intensity, 42);
     setSimConfig({ graph: clip.graph, demand, sab: sim.sab, views: sim.views });
     setMode('running');
-  }, [clip, intensity]);
+  }, [clip, selectedEntryIds, intensity]);
 
   const handleReset = useCallback(() => {
     setSimConfig(null);
     setMode('drawing');
     setSelectionRect(null);
+    setSelectedEntryIds([]);
     setRunning(false);
   }, []);
 
@@ -147,18 +173,22 @@ export function App() {
         selectionRect={selectionRect}
         dataExtent={dataExtent}
         signalData={signalData}
-        onSelectionChange={setSelectionRect}
+        entryMarkers={entryMarkers}
+        selectedEntryIds={selectedEntryIds}
+        onToggleEntry={handleToggleEntry}
+        onSelectionChange={handleSelectionChange}
         running={running}
         onStats={handleStats}
       />
       {mode === 'drawing' ? (
         <SetupBar
           hasSelection={selectionRect !== null}
-          entryCount={clip?.entryEdgeIds.length ?? 0}
-          exitCount={clip?.exitEdgeIds.length ?? 0}
+          availableEntries={entryMarkers?.length ?? 0}
+          selectedEntries={selectedEntryIds.length}
           intensity={intensity}
           onIntensityChange={setIntensity}
           onStart={handleStart}
+          onRedraw={handleRedraw}
         />
       ) : (
         <>

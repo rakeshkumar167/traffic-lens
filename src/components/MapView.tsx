@@ -9,6 +9,8 @@ import { useFrameLoop } from '../hooks/useFrameLoop.ts';
 import { createSnapshot, updateSnapshotAndAlpha } from '../render/interpolation.ts';
 import { buildVehicleLayer } from '../render/vehicle-layer.ts';
 import { buildSignalLayer, type SignalRenderData } from '../render/signal-layer.ts';
+import { buildEntryLayer, type EntryMarker } from '../render/entry-points.ts';
+import type { EdgeId } from '@traffic-lens/shared';
 
 export type MapMode = 'drawing' | 'running';
 
@@ -30,8 +32,8 @@ function ringOf(bbox: BoundingBox): number[][] {
   ];
 }
 
-// Outline of the selected region (the rectangle the user drew). Drawn with a
-// thick #005A9C border plus a faint fill so the active extent is easy to see.
+// Outline of the selected region (the rectangle the user drew). A thin #005A9C
+// border plus a faint fill so the active extent is visible but unobtrusive.
 function buildSelectionLayer(bbox: BoundingBox): PolygonLayer<number[][]> {
   return new PolygonLayer<number[][]>({
     id: 'selection',
@@ -41,8 +43,8 @@ function buildSelectionLayer(bbox: BoundingBox): PolygonLayer<number[][]> {
     filled: true,
     getFillColor: [0, 90, 156, 30],
     getLineColor: [0, 90, 156, 230],
-    lineWidthMinPixels: 4,
-    getLineWidth: 4,
+    lineWidthMinPixels: 1,
+    getLineWidth: 1,
   });
 }
 
@@ -67,12 +69,18 @@ export interface MapViewProps {
   readonly selectionRect: BoundingBox | null;
   readonly dataExtent: BoundingBox | null;
   readonly signalData: SignalRenderData | null;
+  readonly entryMarkers: EntryMarker[] | null;
+  readonly selectedEntryIds: EdgeId[];
+  readonly onToggleEntry: (edgeId: EdgeId) => void;
   readonly onSelectionChange: (bbox: BoundingBox) => void;
   readonly running: boolean;
   readonly onStats: (renderFps: number, tickNumber: number) => void;
 }
 
-export function MapView({ views, mode, selectionRect, dataExtent, signalData, onSelectionChange, running, onStats }: MapViewProps) {
+export function MapView({
+  views, mode, selectionRect, dataExtent, signalData,
+  entryMarkers, selectedEntryIds, onToggleEntry, onSelectionChange, running, onStats,
+}: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
@@ -127,22 +135,42 @@ export function MapView({ views, mode, selectionRect, dataExtent, signalData, on
     },
   });
 
-  // Drawing mode: drag to draw a rectangle; also keep the confirmed selection
-  // (or a cleared canvas) on screen. Pan is disabled only while dragging.
+  // Setup mode. Two sub-steps: with no box, drag to draw one; with a box, click
+  // the highlighted entry points to pick spawn locations (drawing is disabled so
+  // clicks only toggle markers).
   useEffect(() => {
     const map = mapRef.current;
     const overlay = overlayRef.current;
     const container = containerRef.current;
     if (!map || !overlay || !container || mode !== 'drawing') return;
 
+    // Pick sub-step: a box exists — show entry markers and toggle on click.
+    if (selectionRect) {
+      overlay.setProps({
+        layers: [
+          ...(guideLayer ? [guideLayer] : []),
+          buildSelectionLayer(selectionRect),
+          ...(entryMarkers ? [buildEntryLayer(entryMarkers, selectedEntryIds)] : []),
+        ],
+        onClick: (info) => {
+          if (info?.layer?.id === 'entry-points' && info.object) {
+            onToggleEntry((info.object as EntryMarker).edgeId);
+          }
+        },
+      });
+      return;
+    }
+
+    // Draw sub-step: no box yet — drag to draw one.
     const drawRect = (bbox: BoundingBox | null) =>
       overlay.setProps({
         layers: [
           ...(guideLayer ? [guideLayer] : []),
           ...(bbox ? [buildSelectionLayer(bbox)] : []),
         ],
+        onClick: null,
       });
-    drawRect(selectionRect);
+    drawRect(null);
 
     const toLngLat = (clientX: number, clientY: number) => {
       const r = container.getBoundingClientRect();
@@ -171,7 +199,7 @@ export function MapView({ views, mode, selectionRect, dataExtent, signalData, on
       startScreen = null;
       map.dragPan.enable();
       if (Math.hypot(dx, dy) < 6) {
-        drawRect(selectionRect); // treat as a click, keep current selection
+        drawRect(null); // treat as a click, nothing to draw yet
         return;
       }
       onSelectionChange(bboxFromCorners(from, toLngLat(e.clientX, e.clientY)));
@@ -186,7 +214,7 @@ export function MapView({ views, mode, selectionRect, dataExtent, signalData, on
       window.removeEventListener('pointerup', onUp);
       map.dragPan.enable();
     };
-  }, [mode, selectionRect, onSelectionChange, guideLayer]);
+  }, [mode, selectionRect, guideLayer, entryMarkers, selectedEntryIds, onToggleEntry, onSelectionChange]);
 
   // On entering running mode, frame the map to the selected region so the user
   // is looking exactly where vehicles enter (they spawn at the region's edges).

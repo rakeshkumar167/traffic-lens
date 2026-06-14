@@ -1,26 +1,34 @@
 export interface SetupBarProps {
   readonly hasSelection: boolean;
-  readonly entryCount: number;
-  readonly exitCount: number;
+  readonly availableEntries: number;
+  readonly selectedEntries: number;
   readonly intensity: number;
   readonly onIntensityChange: (vehiclesPerHour: number) => void;
   readonly onStart: () => void;
+  readonly onRedraw: () => void;
 }
 
 export function SetupBar({
-  hasSelection, entryCount, exitCount, intensity, onIntensityChange, onStart,
+  hasSelection, availableEntries, selectedEntries, intensity,
+  onIntensityChange, onStart, onRedraw,
 }: SetupBarProps) {
-  const valid = hasSelection && entryCount > 0 && exitCount > 0;
-  const selectedButNoRoads = hasSelection && (entryCount === 0 || exitCount === 0);
+  const valid = hasSelection && selectedEntries > 0;
+  const selectedButNoEntries = hasSelection && availableEntries === 0;
 
   return (
     <div style={bar}>
       <strong>Set up simulation</strong>
       <span style={{ opacity: 0.8 }}>
-        {hasSelection
-          ? `Region selected — entries: ${entryCount}, exits: ${exitCount}`
-          : 'Drag on the map to select a rectangular region'}
+        {!hasSelection
+          ? 'Drag on the map to select a rectangular region'
+          : availableEntries === 0
+            ? 'No entry roads cross this region'
+            : `Click the highlighted points to choose where vehicles enter · ${selectedEntries}/${availableEntries} selected`}
       </span>
+
+      {hasSelection && (
+        <button onClick={onRedraw} style={btn}>Redraw region</button>
+      )}
 
       <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         Intensity:
@@ -39,10 +47,8 @@ export function SetupBar({
         Start
       </button>
 
-      {selectedButNoRoads && (
-        <span style={{ color: '#ffb4b4' }}>
-          No entry/exit roads cross this region — draw a larger box.
-        </span>
+      {selectedButNoEntries && (
+        <span style={{ color: '#ffb4b4' }}>Draw a box that a road crosses.</span>
       )}
     </div>
   );
