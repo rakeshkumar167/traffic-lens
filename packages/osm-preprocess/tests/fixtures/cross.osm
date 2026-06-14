@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="hand-authored">
+  <bounds minlat="12.930" minlon="77.615" maxlat="12.950" maxlon="77.635"/>
+
+  <node id="10" lat="12.940" lon="77.625"/>
+  <node id="11" lat="12.945" lon="77.625"/>
+  <node id="12" lat="12.935" lon="77.625"/>
+  <node id="13" lat="12.940" lon="77.630"/>
+  <node id="14" lat="12.940" lon="77.620"/>
+
+  <way id="200">
+    <nd ref="11"/>
+    <nd ref="10"/>
+    <nd ref="12"/>
+    <tag k="highway" v="tertiary"/>
+  </way>
+  <way id="201">
+    <nd ref="13"/>
+    <nd ref="10"/>
+    <nd ref="14"/>
+    <tag k="highway" v="tertiary"/>
+  </way>
+</osm>

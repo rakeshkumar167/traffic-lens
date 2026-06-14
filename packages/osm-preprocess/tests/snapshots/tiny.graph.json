@@ -265,7 +265,7 @@
     },
     {
       "id": 3,
-      "kind": "signalled",
+      "kind": "priority",
       "lon": 77.625,
       "lat": 12.94,
       "position": {
@@ -312,23 +312,9 @@
           "toLane": 0
         }
       ],
-      "defaultSignalPlan": {
-        "cycleSec": 60,
-        "phases": [
-          {
-            "greenIncomingEdges": [
-              4
-            ],
-            "durationSec": 30
-          },
-          {
-            "greenIncomingEdges": [
-              6
-            ],
-            "durationSec": 30
-          }
-        ]
-      }
+      "priorityEdges": [
+        4
+      ]
     },
     {
       "id": 1,

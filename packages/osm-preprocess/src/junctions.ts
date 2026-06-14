@@ -12,8 +12,12 @@ import { ROAD_CLASS_PRIORITY_RANK } from '@traffic-lens/shared';
 import { lonLatToWebMercator } from './project.ts';
 import type { ParsedOsm } from './types.ts';
 
-const DEFAULT_SIGNAL_CYCLE_SEC = 60;
-const DEFAULT_SIGNAL_PHASE_SEC = 30;
+// Signals are placed structurally at real crossroads, not from OSM's
+// (unreliable) stop-line `traffic_signals` tags: a junction is signalled iff it
+// has at least MIN_SIGNAL_LEGS distinct neighbour legs and a biggest approach
+// road of at least MIN_SIGNAL_RANK (tertiary).
+const MIN_SIGNAL_LEGS = 4;
+const MIN_SIGNAL_RANK = ROAD_CLASS_PRIORITY_RANK.tertiary;
 
 export function buildJunctions(
   parsed: ParsedOsm,
@@ -41,8 +45,7 @@ export function buildJunctions(
     const connections = buildConnectionTable(incomingEdges, outgoingEdges, edgeById);
     const position = lonLatToWebMercator(node.lon, node.lat);
 
-    const hasSignalTag = node.tags['highway'] === 'traffic_signals';
-    if (hasSignalTag) {
+    if (shouldSignalise(incomingEdges, outgoingEdges, edgeById)) {
       const signalled: SignalledJunction = {
         id: nodeId,
         kind: 'signalled',
@@ -136,24 +139,99 @@ function computePriorityEdges(
   });
 }
 
+function maxApproachRank(
+  incomingEdges: readonly EdgeId[],
+  outgoingEdges: readonly EdgeId[],
+  edgeById: ReadonlyMap<EdgeId, Edge>,
+): number {
+  let max = -Infinity;
+  for (const id of [...incomingEdges, ...outgoingEdges]) {
+    const e = edgeById.get(id);
+    if (e) max = Math.max(max, ROAD_CLASS_PRIORITY_RANK[e.roadClass]);
+  }
+  return max;
+}
+
+function legCount(
+  incomingEdges: readonly EdgeId[],
+  outgoingEdges: readonly EdgeId[],
+  edgeById: ReadonlyMap<EdgeId, Edge>,
+): number {
+  const neighbours = new Set<JunctionId>();
+  for (const id of incomingEdges) neighbours.add(edgeById.get(id)!.fromJunction);
+  for (const id of outgoingEdges) neighbours.add(edgeById.get(id)!.toJunction);
+  return neighbours.size;
+}
+
+function shouldSignalise(
+  incomingEdges: readonly EdgeId[],
+  outgoingEdges: readonly EdgeId[],
+  edgeById: ReadonlyMap<EdgeId, Edge>,
+): boolean {
+  return legCount(incomingEdges, outgoingEdges, edgeById) >= MIN_SIGNAL_LEGS
+    && maxApproachRank(incomingEdges, outgoingEdges, edgeById) >= MIN_SIGNAL_RANK;
+}
+
+// Green seconds per phase, scaled by the junction's biggest approach road class
+// (bigger/arterial junctions get longer greens).
+export function greenSecForRank(rank: number): number {
+  if (rank >= ROAD_CLASS_PRIORITY_RANK.primary) return 45;
+  if (rank >= ROAD_CLASS_PRIORITY_RANK.secondary) return 35;
+  if (rank >= ROAD_CLASS_PRIORITY_RANK.tertiary) return 25;
+  return 20;
+}
+
+// Bearing (radians) of an edge's final segment, i.e. its direction into the
+// junction at the `to` end.
+function approachBearing(edge: Edge): number {
+  const g = edge.geometry;
+  const a = g[g.length - 2] ?? g[0]!;
+  const b = g[g.length - 1]!;
+  return Math.atan2(b.y - a.y, b.x - a.x);
+}
+
+// Split incoming approaches into two phases by bearing axis: opposing approaches
+// (≈180° apart → same axis mod 180°) share a phase, giving "NS-green then
+// EW-green". Phase A = approaches within 45° of the first approach's axis.
+export function groupApproachesByAxis(
+  incomingEdges: readonly EdgeId[],
+  edgeById: ReadonlyMap<EdgeId, Edge>,
+): [EdgeId[], EdgeId[]] {
+  const phaseA: EdgeId[] = [];
+  const phaseB: EdgeId[] = [];
+  if (incomingEdges.length === 0) return [phaseA, phaseB];
+
+  const axisOf = (id: EdgeId): number => {
+    let ax = approachBearing(edgeById.get(id)!) % Math.PI;
+    if (ax < 0) ax += Math.PI; // fold to [0, π)
+    return ax;
+  };
+  const ref = axisOf(incomingEdges[0]!);
+  for (const id of incomingEdges) {
+    let d = Math.abs(axisOf(id) - ref);
+    if (d > Math.PI / 2) d = Math.PI - d; // axis distance folds to [0, π/2]
+    if (d <= Math.PI / 4) phaseA.push(id);
+    else phaseB.push(id);
+  }
+  return [phaseA, phaseB];
+}
+
 function defaultSignalPlanFor(
   incomingEdges: readonly EdgeId[],
-  _edgeById: ReadonlyMap<EdgeId, Edge>,
+  edgeById: ReadonlyMap<EdgeId, Edge>,
 ): SignalPlan {
-  if (incomingEdges.length === 0) {
-    return { cycleSec: DEFAULT_SIGNAL_CYCLE_SEC, phases: [] };
+  if (incomingEdges.length === 0) return { cycleSec: 0, phases: [] };
+  const [phaseA, phaseB] = groupApproachesByAxis(incomingEdges, edgeById);
+  let maxRank = -Infinity;
+  for (const id of incomingEdges) {
+    maxRank = Math.max(maxRank, ROAD_CLASS_PRIORITY_RANK[edgeById.get(id)!.roadClass]);
   }
-  // Slice default: two phases, each holding half the incoming edges green.
-  // For 4-way junctions this approximates "NS-green then EW-green". For more
-  // exotic counts it still produces a valid round-robin that the sim can run.
-  const half = Math.ceil(incomingEdges.length / 2);
-  const phaseA = incomingEdges.slice(0, half);
-  const phaseB = incomingEdges.slice(half);
+  const green = greenSecForRank(maxRank);
   const phases = phaseB.length === 0
-    ? [{ greenIncomingEdges: phaseA, durationSec: DEFAULT_SIGNAL_CYCLE_SEC }]
+    ? [{ greenIncomingEdges: phaseA, durationSec: green }]
     : [
-        { greenIncomingEdges: phaseA, durationSec: DEFAULT_SIGNAL_PHASE_SEC },
-        { greenIncomingEdges: phaseB, durationSec: DEFAULT_SIGNAL_PHASE_SEC },
+        { greenIncomingEdges: phaseA, durationSec: green },
+        { greenIncomingEdges: phaseB, durationSec: green },
       ];
   const cycleSec = phases.reduce((s, p) => s + p.durationSec, 0);
   return { cycleSec, phases };
