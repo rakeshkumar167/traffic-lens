@@ -138,6 +138,21 @@ export const ROAD_CLASS_DEFAULT_LANES: Readonly<Record<RoadClass, number>> = {
 // length from the junction so the head sits clearly on the approach.
 export const SIGNAL_STOP_LINE_M = 12;
 
+// Physical bumper-to-bumper length of a vehicle (metres). Vehicle positions are
+// stored as the centre point along an edge, so the centre-to-centre distance to
+// the car ahead is one full vehicle length larger than the bumper-to-bumper gap.
+// The sim subtracts this from perceived gaps (so IDM's jam distance s0 becomes a
+// true bumper gap and queued cars don't overlap), and the renderer draws cars at
+// this length so the on-map spacing matches the model.
+export const VEHICLE_LENGTH_M = 6;
+
+// Half a lane's width (metres). Used to size the carriageway and junction boxes.
+export const LANE_HALF_WIDTH_M = 1.6;
+
+// Clearance (metres) a vehicle keeps behind the junction box when stopped at a
+// red — its front bumper halts this far back from the box edge.
+export const JUNCTION_STOP_GAP_M = 1;
+
 // Priority ranking for priority-yield junctions. Higher value = higher priority.
 export const ROAD_CLASS_PRIORITY_RANK: Readonly<Record<RoadClass, number>> = {
   primary: 6,

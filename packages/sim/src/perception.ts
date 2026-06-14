@@ -1,4 +1,5 @@
 import type { Edge, EdgeId } from '@traffic-lens/shared';
+import { VEHICLE_LENGTH_M } from '@traffic-lens/shared';
 import type { VehicleStore } from './vehicle-store.ts';
 
 interface EdgeBucket {
@@ -10,6 +11,11 @@ interface EdgeBucket {
 export interface LeaderResult {
   slotIdx: number;
   gapM: number;
+}
+
+export interface TrailingResult {
+  slotIdx: number;
+  progress: number;
 }
 
 export class PerceptionIndex {
@@ -78,7 +84,26 @@ export class PerceptionIndex {
     if (bestIdx < 0) return null;
     return {
       slotIdx: bucket.slotIdx[bestIdx]!,
-      gapM: (bestProg - progressF32) * edge.lengthM,
+      // Positions are vehicle centres, so subtract one vehicle length to get the
+      // bumper-to-bumper gap IDM expects. Clamp at 0 so an overlap (e.g. a car
+      // that just crossed onto a packed edge) reads as a hard stop, not a
+      // negative gap.
+      gapM: Math.max(0, (bestProg - progressF32) * edge.lengthM - VEHICLE_LENGTH_M),
     };
+  }
+
+  // The trailing (lowest-progress) vehicle in a lane — i.e. the last car of a
+  // queue, closest to the edge's entry. Used for cross-edge spillback braking so
+  // a car entering this edge from upstream sees the queue tail. Buckets are
+  // sorted by progress ascending, so the first lane match is the trailing one.
+  findTrailing(edgeId: EdgeId, lane: number): TrailingResult | null {
+    const bucket = this.buckets.get(edgeId);
+    if (!bucket) return null;
+    for (let i = 0; i < bucket.slotIdx.length; i++) {
+      if (bucket.lane[i] === lane) {
+        return { slotIdx: bucket.slotIdx[i]!, progress: bucket.progress[i]! };
+      }
+    }
+    return null;
   }
 }

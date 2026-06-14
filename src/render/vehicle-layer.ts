@@ -1,6 +1,6 @@
 import { IconLayer } from '@deck.gl/layers';
 import {
-  MAX_VEHICLES, STATE_ACTIVE, type SabViews,
+  MAX_VEHICLES, STATE_ACTIVE, VEHICLE_LENGTH_M, type SabViews,
 } from '@traffic-lens/shared';
 import type { InterpSnapshot } from './interpolation.ts';
 import { webMercatorToLonLat } from './projection.ts';
@@ -51,9 +51,10 @@ export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs
     iconMapping: ICON_MAPPING,
     // Stable per-slot car variant so the fleet looks varied.
     getIcon: (d: VehicleDatum) => CAR_NAMES[d.slotIdx % CAR_NAMES.length]!,
-    // Icon height ≈ a car length; clamp to visible pixels at any zoom.
+    // Icon height = one car length, the same value the sim uses for car-following
+    // gaps, so on-map spacing matches the model. Clamp to visible pixels at any zoom.
     sizeUnits: 'meters',
-    getSize: 6,
+    getSize: VEHICLE_LENGTH_M,
     sizeMinPixels: 14,
     sizeMaxPixels: 48,
     billboard: true,

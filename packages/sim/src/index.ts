@@ -14,3 +14,6 @@ export {
 } from './signals.ts';
 export { createWorkerDriver, type WorkerDriver } from './worker-driver.ts';
 export { clipGraph, buildDemand, type ClipResult } from './region.ts';
+export {
+  buildJunctionBoxes, exitDistance, type JunctionBox, type JunctionBoxes,
+} from './junction-box.ts';

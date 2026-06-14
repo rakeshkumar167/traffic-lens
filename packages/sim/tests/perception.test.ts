@@ -3,6 +3,7 @@ import {
   computeSabByteLength,
   createSabViews,
   VEHICLE_TYPE_CAR,
+  VEHICLE_LENGTH_M,
 } from '@traffic-lens/shared';
 import type { Edge } from '@traffic-lens/shared';
 import { VehicleStore } from '../src/vehicle-store.ts';
@@ -44,8 +45,9 @@ describe('PerceptionIndex', () => {
     const leader = idx.findLeader(7, 0, 0.2);
     expect(leader).not.toBeNull();
     expect(leader!.slotIdx).toBe(b);
-    // Gap = (0.5 - 0.2) * 100 = 30 m.
-    expect(leader!.gapM).toBeCloseTo(30, 5);
+    // Centre-to-centre = (0.5 - 0.2) * 100 = 30 m; the reported gap is
+    // bumper-to-bumper, i.e. minus one vehicle length.
+    expect(leader!.gapM).toBeCloseTo(30 - VEHICLE_LENGTH_M, 5);
     expect(idx.findLeader(7, 0, 0.5)).toBeNull();
   });
 
@@ -67,6 +69,26 @@ describe('PerceptionIndex', () => {
     idx.rebuild(store, new Map([[7, e]]));
     const leader = idx.findLeader(7, 0, 0.45);
     expect(leader!.slotIdx).toBe(slots[5]);
-    expect(leader!.gapM).toBeCloseTo(5, 5);
+    // Centre-to-centre is 5 m — less than a vehicle length — so the
+    // bumper-to-bumper gap clamps to 0 (treated as an overlap / hard stop).
+    expect(leader!.gapM).toBeCloseTo(Math.max(0, 5 - VEHICLE_LENGTH_M), 5);
+  });
+
+  it('findTrailing returns the lowest-progress vehicle in a lane', () => {
+    const store = makeStore();
+    const e = edge(7, 1, 100);
+    const tail = spawn(store, 7, 0, 0.1);
+    spawn(store, 7, 0, 0.6);
+    spawn(store, 7, 0, 0.9);
+    const idx = new PerceptionIndex();
+    idx.rebuild(store, new Map([[7, e]]));
+
+    const trailing = idx.findTrailing(7, 0);
+    expect(trailing).not.toBeNull();
+    expect(trailing!.slotIdx).toBe(tail);
+    expect(trailing!.progress).toBeCloseTo(0.1, 5);
+
+    expect(idx.findTrailing(7, 1)).toBeNull(); // empty lane
+    expect(idx.findTrailing(999, 0)).toBeNull(); // unknown edge
   });
 });

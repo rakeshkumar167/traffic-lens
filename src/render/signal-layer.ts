@@ -1,14 +1,15 @@
-import { IconLayer } from '@deck.gl/layers';
+import { IconLayer, PolygonLayer } from '@deck.gl/layers';
 import type {
   EdgeId, JunctionId, Point2D, RoadGraph, SignalPlan,
 } from '@traffic-lens/shared';
-import { SIGNAL_STOP_LINE_M } from '@traffic-lens/shared';
-import { signalStateAt, type SignalColor } from '@traffic-lens/sim';
+import { SIGNAL_STOP_LINE_M, LANE_HALF_WIDTH_M } from '@traffic-lens/shared';
+import {
+  signalStateAt, buildJunctionBoxes, exitDistance, type SignalColor, type JunctionBox,
+} from '@traffic-lens/sim';
 import { webMercatorToLonLat } from './projection.ts';
 
 const CLUSTER_RADIUS_M = 30;          // merge signal nodes of one intersection
 const DIRECTION_TOLERANCE = Math.PI / 4; // approaches within 45° = same direction
-const LANE_HALF_WIDTH_M = 1.6;         // half a lane's width
 const LEFT_MARGIN_M = 2.5;             // gap between road edge and the head
 const APPROACH_LOOKBACK_M = 15;        // average approach direction over this run
 
@@ -56,10 +57,29 @@ export interface SignalMarker {
   readonly heading: number;            // approach bearing (radians, CCW from east)
 }
 
+// A single white stripe of a zebra crossing, as a [lon, lat] polygon ring.
+export interface CrossingStripe {
+  readonly polygon: [number, number][];
+}
+
+// A junction box as a [lon, lat] polygon ring (the no-entry intersection area).
+export interface JunctionArea {
+  readonly polygon: [number, number][];
+}
+
 export interface SignalRenderData {
   readonly markers: SignalMarker[];
+  readonly crossings: CrossingStripe[];
+  readonly areas: JunctionArea[];
   readonly plans: Map<JunctionId, SignalPlan>;
 }
+
+// Zebra crossing geometry (metres). Stripes run along the travel direction and
+// repeat across the carriageway, centred on the sim's stop line so cars halt
+// just behind it.
+const CROSSING_DEPTH_M = 4;   // extent along travel direction
+const STRIPE_WIDTH_M = 0.5;   // each white bar, across the road
+const STRIPE_GAP_M = 0.6;     // gap between bars
 
 type SignalledJunction = RoadGraph['junctions'][number] & { kind: 'signalled' };
 
@@ -139,13 +159,62 @@ function markerFor(rep: Approach): SignalMarker | null {
   };
 }
 
+// Zebra-crossing stripes spanning the carriageway, just outside the junction box
+// so cars halt behind them.
+function crossingFor(rep: Approach, box: JunctionBox | undefined): CrossingStripe[] {
+  const v = approachVector(rep.geometry);
+  if (!v) return [];
+  const { ux, uy, end } = v;
+  const lx = -uy; // lateral (left of travel)
+  const ly = ux;
+  // Distance from the junction node back to the box edge along this approach;
+  // fall back to the fixed stop-line offset if there's no box.
+  const stopBack = box ? exitDistance(box, end.x, end.y, -ux, -uy) : SIGNAL_STOP_LINE_M;
+  // Centre of the crossing band, on the road centreline at the box boundary.
+  const cx = end.x - ux * stopBack;
+  const cy = end.y - uy * stopBack;
+  const halfWidth = rep.lanes * LANE_HALF_WIDTH_M;
+  const halfDepth = CROSSING_DEPTH_M / 2;
+  const pitch = STRIPE_WIDTH_M + STRIPE_GAP_M;
+  const stripes: CrossingStripe[] = [];
+  // Walk across the road in both directions from the centreline.
+  for (let o = -halfWidth + STRIPE_WIDTH_M / 2; o <= halfWidth; o += pitch) {
+    const sw = STRIPE_WIDTH_M / 2;
+    // Four corners: ±depth along travel, ±width across.
+    const corner = (du: number, dl: number): [number, number] => webMercatorToLonLat(
+      cx + ux * du + lx * (o + dl),
+      cy + uy * du + ly * (o + dl),
+    );
+    stripes.push({
+      polygon: [
+        corner(-halfDepth, -sw),
+        corner(halfDepth, -sw),
+        corner(halfDepth, sw),
+        corner(-halfDepth, sw),
+      ],
+    });
+  }
+  return stripes;
+}
+
 // One signal head per approach direction of each clustered intersection.
 export function buildSignalMarkers(graph: RoadGraph): SignalRenderData {
   const edgeById = new Map<EdgeId, RoadGraph['edges'][number]>(graph.edges.map((e) => [e.id, e]));
   const signalled = graph.junctions.filter((j): j is SignalledJunction => j.kind === 'signalled');
   const plans = new Map<JunctionId, SignalPlan>(signalled.map((j) => [j.id, j.defaultSignalPlan]));
 
+  const { boxes, byJunction } = buildJunctionBoxes(graph);
+  const areas: JunctionArea[] = boxes.map((b) => ({
+    polygon: [
+      webMercatorToLonLat(b.cx - b.hx, b.cy - b.hy),
+      webMercatorToLonLat(b.cx + b.hx, b.cy - b.hy),
+      webMercatorToLonLat(b.cx + b.hx, b.cy + b.hy),
+      webMercatorToLonLat(b.cx - b.hx, b.cy + b.hy),
+    ],
+  }));
+
   const markers: SignalMarker[] = [];
+  const crossings: CrossingStripe[] = [];
   for (const cluster of clusterJunctions(signalled)) {
     const approaches: Approach[] = [];
     for (const j of cluster) {
@@ -171,9 +240,43 @@ export function buildSignalMarkers(graph: RoadGraph): SignalRenderData {
       const rep = grp.reduce((m, x) => (x.len > m.len ? x : m), grp[0]!);
       const marker = markerFor(rep);
       if (marker) markers.push(marker);
+      crossings.push(...crossingFor(rep, byJunction.get(rep.junctionId)));
     }
   }
-  return { markers, plans };
+  return { markers, crossings, areas, plans };
+}
+
+// The junction box — the intersection area cars must not enter on a red. Drawn
+// as a faint translucent fill so it reads as the conflict zone without hiding
+// the basemap. Static, so it sits below the vehicles.
+export function buildJunctionAreaLayer(data: SignalRenderData): PolygonLayer<JunctionArea> {
+  return new PolygonLayer<JunctionArea>({
+    id: 'junction-areas',
+    data: data.areas,
+    getPolygon: (a) => a.polygon,
+    getFillColor: [255, 196, 0, 28],
+    getLineColor: [255, 196, 0, 120],
+    getLineWidth: 1,
+    lineWidthUnits: 'pixels',
+    stroked: true,
+    filled: true,
+    extruded: false,
+    pickable: false,
+  });
+}
+
+// White zebra-crossing stripes painted on the carriageway at each stop line.
+// Static (no per-frame state), so it lives below the moving vehicles.
+export function buildCrossingLayer(data: SignalRenderData): PolygonLayer<CrossingStripe> {
+  return new PolygonLayer<CrossingStripe>({
+    id: 'crossings',
+    data: data.crossings,
+    getPolygon: (s) => s.polygon,
+    getFillColor: [245, 245, 245, 200],
+    stroked: false,
+    extruded: false,
+    pickable: false,
+  });
 }
 
 export function buildSignalLayers(
