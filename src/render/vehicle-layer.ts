@@ -59,14 +59,29 @@ export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs
     billboard: true,
     getPosition: (d: VehicleDatum) => {
       const i = d.slotIdx;
-      const x = snapshot.posX[i]! + (views.posX[i]! - snapshot.posX[i]!) * alpha;
-      const y = snapshot.posY[i]! + (views.posY[i]! - snapshot.posY[i]!) * alpha;
-      const [lon, lat] = webMercatorToLonLat(x, y);
+      const dx = snapshot.curX[i]! - snapshot.prevX[i]!;
+      const dy = snapshot.curY[i]! - snapshot.prevY[i]!;
+      // A normal per-tick move is well under a metre; a large jump means a spawn,
+      // slot reuse, or edge discontinuity — snap to the current position instead
+      // of lerping (which would streak the car across the map).
+      const a = dx * dx + dy * dy > 25 ? 1 : alpha;
+      const [lon, lat] = webMercatorToLonLat(
+        snapshot.prevX[i]! + dx * a,
+        snapshot.prevY[i]! + dy * a,
+      );
       return [lon, lat];
     },
     // heading is radians CCW from east; sprites point up (north), so subtract 90°
-    // to align the car's nose with its travel direction.
-    getAngle: (d: VehicleDatum) => (views.heading[d.slotIdx]! * 180) / Math.PI - 90,
+    // to align the car's nose with its travel direction. Interpolate along the
+    // shortest arc so turns rotate smoothly.
+    getAngle: (d: VehicleDatum) => {
+      const i = d.slotIdx;
+      let diff = snapshot.curHeading[i]! - snapshot.prevHeading[i]!;
+      while (diff > Math.PI) diff -= 2 * Math.PI;
+      while (diff < -Math.PI) diff += 2 * Math.PI;
+      const h = snapshot.prevHeading[i]! + diff * alpha;
+      return (h * 180) / Math.PI - 90;
+    },
     updateTriggers: {
       getPosition: alpha,
       getAngle: alpha,
