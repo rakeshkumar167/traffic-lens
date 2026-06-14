@@ -97,11 +97,11 @@ export function MapView({
       zoom: INITIAL_VIEW.zoom,
       pitch: INITIAL_VIEW.pitch,
       bearing: INITIAL_VIEW.bearing,
-      // Default attribution sits bottom-right, under the full-width playback bar.
-      // Move it to the top-right (compact) so it stays visible but clear.
+      // The top navbar and bottom bar occupy both edges, so MapLibre's own
+      // attribution control has nowhere clear to sit — it's rendered as text in
+      // the navbar instead (see Navbar).
       attributionControl: false,
     });
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'top-right');
     mapRef.current = map;
 
     const overlay = new MapboxOverlay({ interleaved: false, layers: [] });

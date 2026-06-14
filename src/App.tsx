@@ -8,6 +8,10 @@ import { useWorker } from './hooks/useWorker.ts';
 import { MapView, type MapMode } from './components/MapView.tsx';
 import { PlaybackBar } from './components/PlaybackBar.tsx';
 import { SetupBar } from './components/SetupBar.tsx';
+import { Navbar } from './components/Navbar.tsx';
+import { HelpModal } from './components/HelpModal.tsx';
+
+const HELP_SEEN_KEY = 'traffic-lens-help-seen';
 import { buildSignalMarkers } from './render/signal-layer.ts';
 import { buildEntryMarkers } from './render/entry-points.ts';
 
@@ -99,6 +103,18 @@ export function App() {
   const [renderFps, setRenderFps] = useState(0);
   const [tickNumber, setTickNumber] = useState(0);
 
+  // Show the help modal automatically on a user's first visit.
+  const [helpOpen, setHelpOpen] = useState(false);
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(HELP_SEEN_KEY)) setHelpOpen(true);
+    } catch { /* localStorage unavailable — skip auto-open */ }
+  }, []);
+  const handleHelpClose = useCallback(() => {
+    setHelpOpen(false);
+    try { localStorage.setItem(HELP_SEEN_KEY, '1'); } catch { /* ignore */ }
+  }, []);
+
   const handleStats = useCallback((fps: number, tick: number) => {
     setRenderFps(fps);
     setTickNumber(tick);
@@ -167,6 +183,11 @@ export function App() {
 
   return (
     <>
+      <Navbar
+        showReset={mode === 'running'}
+        onReset={handleReset}
+        onHelp={() => setHelpOpen(true)}
+      />
       <MapView
         views={workerReady ? views : null}
         mode={mode}
@@ -191,27 +212,19 @@ export function App() {
           onRedraw={handleRedraw}
         />
       ) : (
-        <>
-          <button onClick={handleReset} style={resetBtn}>Reset region</button>
-          <PlaybackBar
-            ready={workerReady}
-            running={running}
-            tickNumber={tickNumber}
-            activeVehicles={activeCount}
-            renderFps={renderFps}
-            onPlay={handlePlay}
-            onPause={handlePause}
-            onStep={worker.step}
-            onSetSpeed={worker.setSpeed}
-          />
-        </>
+        <PlaybackBar
+          ready={workerReady}
+          running={running}
+          tickNumber={tickNumber}
+          activeVehicles={activeCount}
+          renderFps={renderFps}
+          onPlay={handlePlay}
+          onPause={handlePause}
+          onStep={worker.step}
+          onSetSpeed={worker.setSpeed}
+        />
       )}
+      {helpOpen && <HelpModal onClose={handleHelpClose} />}
     </>
   );
 }
-
-const resetBtn: React.CSSProperties = {
-  position: 'absolute', top: 12, left: 12, zIndex: 1,
-  padding: '6px 12px', background: 'rgba(31, 41, 52, 0.9)', color: '#e8eef5',
-  border: '1px solid #2a3340', borderRadius: 4, cursor: 'pointer', fontSize: 13,
-};
