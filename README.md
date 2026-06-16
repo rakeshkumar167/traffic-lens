@@ -7,6 +7,8 @@ individual cars route, queue, obey traffic signals, and flow in real time.
 The simulation runs in a Web Worker and shares state with the renderer through a
 `SharedArrayBuffer`; the map is MapLibre GL with a deck.gl overlay.
 
+![Traffic Simulator screenshot](screenshot.png)
+
 ## What it does
 
 - **Draw a region** — drag a rectangle anywhere inside the loaded network (a grey
