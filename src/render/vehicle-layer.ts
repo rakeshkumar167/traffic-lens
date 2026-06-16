@@ -4,25 +4,74 @@ import {
 } from '@traffic-lens/shared';
 import type { InterpSnapshot } from './interpolation.ts';
 import { webMercatorToLonLat } from './projection.ts';
-import carAtlas from '../car-sprite.png';
+import vehicleAtlas from '../vehicle-sprite.png';
 
-// Sub-image bounding boxes within src/car-sprite.png (1536×1024), one per car.
-const CARS = [
-  { name: 'red', x: 180, y: 60, width: 200, height: 440 },
-  { name: 'blue', x: 450, y: 60, width: 200, height: 440 },
-  { name: 'white', x: 720, y: 60, width: 220, height: 450 },
-  { name: 'yellow', x: 1010, y: 60, width: 220, height: 440 },
-  { name: 'black', x: 180, y: 540, width: 210, height: 410 },
-  { name: 'silver', x: 450, y: 540, width: 220, height: 410 },
-  { name: 'green', x: 730, y: 550, width: 210, height: 390 },
-  { name: 'orange', x: 1010, y: 540, width: 230, height: 410 },
+// Tight pixel bounding boxes within src/vehicle-sprite.png.
+// Rows 1–4: all 95×176 px. Row 5 (heavy vehicles): 133×240 px.
+const VEHICLES = [
+  // Row 1 — Sedans & Trucks
+  { name: 'red-sedan-1',     x: 60,   y: 27,  w: 95,  h: 176 },
+  { name: 'blue-sedan-1',    x: 198,  y: 27,  w: 95,  h: 176 },
+  { name: 'white-sedan-1',   x: 331,  y: 24,  w: 95,  h: 176 },
+  { name: 'black-suv-1',     x: 462,  y: 22,  w: 95,  h: 176 },
+  { name: 'silver-sedan',    x: 595,  y: 22,  w: 95,  h: 176 },
+  { name: 'orange-sedan-1',  x: 723,  y: 23,  w: 95,  h: 176 },
+  { name: 'green-sedan',     x: 850,  y: 21,  w: 95,  h: 176 },
+  { name: 'white-sedan-2',   x: 972,  y: 25,  w: 95,  h: 176 },
+  { name: 'police-car',      x: 1102, y: 24,  w: 95,  h: 176 },
+  { name: 'container-truck', x: 1341, y: 28,  w: 95,  h: 176 },
+  // Row 2 — Sedans, SUV, Taxi & Van (slot 17 not measured, skipped)
+  { name: 'red-sedan-2',     x: 59,   y: 225, w: 95,  h: 176 },
+  { name: 'blue-sedan-2',    x: 197,  y: 222, w: 95,  h: 176 },
+  { name: 'white-sedan-3',   x: 332,  y: 223, w: 95,  h: 176 },
+  { name: 'yellow-sedan',    x: 463,  y: 223, w: 95,  h: 176 },
+  { name: 'orange-sedan-2',  x: 588,  y: 223, w: 95,  h: 176 },
+  { name: 'red-sedan-3',     x: 719,  y: 223, w: 95,  h: 176 },
+  { name: 'white-sedan-4',   x: 847,  y: 223, w: 95,  h: 176 },
+  { name: 'black-suv-2',     x: 1093, y: 222, w: 95,  h: 176 },
+  { name: 'taxi',            x: 1212, y: 227, w: 95,  h: 176 },
+  { name: 'white-van',       x: 1343, y: 233, w: 95,  h: 176 },
+  // Row 3 — Emergency, Rickshaws & Delivery
+  { name: 'ambulance',       x: 32,   y: 401, w: 95,  h: 176 },
+  { name: 'auto-rickshaw-1', x: 202,  y: 407, w: 95,  h: 176 },
+  { name: 'auto-rickshaw-2', x: 337,  y: 409, w: 95,  h: 176 },
+  { name: 'e-rickshaw',      x: 469,  y: 412, w: 95,  h: 176 },
+  { name: 'swiggy-bike',     x: 601,  y: 420, w: 95,  h: 176 },
+  { name: 'delivery-bike',   x: 731,  y: 418, w: 95,  h: 176 },
+  { name: 'zomato-bike',     x: 853,  y: 415, w: 95,  h: 176 },
+  { name: 'delivery-van',    x: 995,  y: 413, w: 95,  h: 176 },
+  { name: 'police-suv',      x: 1161, y: 415, w: 95,  h: 176 },
+  { name: 'utility-vehicle', x: 1332, y: 419, w: 95,  h: 176 },
+  // Row 4 — Motorcycles, Scooters & Cyclists
+  { name: 'moto-red',        x: 19,   y: 576, w: 95,  h: 176 },
+  { name: 'moto-blue',       x: 172,  y: 590, w: 95,  h: 176 },
+  { name: 'moto-black',      x: 299,  y: 590, w: 95,  h: 176 },
+  { name: 'moto-green',      x: 419,  y: 591, w: 95,  h: 176 },
+  { name: 'scooter-white',   x: 667,  y: 590, w: 95,  h: 176 },
+  { name: 'scooter-red',     x: 780,  y: 589, w: 95,  h: 176 },
+  { name: 'scooter-blue',    x: 892,  y: 588, w: 95,  h: 176 },
+  { name: 'scooter-black',   x: 1006, y: 588, w: 95,  h: 176 },
+  { name: 'cyclist-blue',    x: 1140, y: 592, w: 95,  h: 176 },
+  { name: 'cyclist-pink',    x: 1258, y: 590, w: 95,  h: 176 },
+  { name: 'cyclist-green',   x: 1369, y: 595, w: 95,  h: 176 },
+  // Row 5 — Heavy Vehicles (133×240)
+  { name: 'school-bus',      x: 36,   y: 771, w: 133, h: 240 },
+  { name: 'city-bus',        x: 174,  y: 771, w: 133, h: 240 },
+  { name: 'cargo-truck',     x: 316,  y: 776, w: 133, h: 240 },
+  { name: 'box-truck',       x: 446,  y: 774, w: 133, h: 240 },
+  { name: 'garbage-truck',   x: 583,  y: 779, w: 133, h: 240 },
+  { name: 'fire-truck',      x: 727,  y: 773, w: 133, h: 240 },
+  { name: 'cement-mixer',    x: 862,  y: 775, w: 133, h: 240 },
+  { name: 'tanker-truck',    x: 1006, y: 776, w: 133, h: 240 },
+  { name: 'rv',              x: 1152, y: 778, w: 133, h: 240 },
+  { name: 'car-carrier',     x: 1298, y: 783, w: 133, h: 240 },
 ] as const;
 
-const ICON_MAPPING = Object.fromEntries(CARS.map((c) => [
-  c.name,
-  { x: c.x, y: c.y, width: c.width, height: c.height, anchorX: c.width / 2, anchorY: c.height / 2, mask: false },
+const ICON_MAPPING = Object.fromEntries(VEHICLES.map((v) => [
+  v.name,
+  { x: v.x, y: v.y, width: v.w, height: v.h, anchorX: v.w / 2, anchorY: v.h / 2, mask: false },
 ]));
-const CAR_NAMES = CARS.map((c) => c.name);
+const VEHICLE_NAMES = VEHICLES.map((v) => v.name);
 
 interface VehicleDatum {
   readonly slotIdx: number;
@@ -47,10 +96,10 @@ export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs
     id: layerId,
     data,
     pickable: false,
-    iconAtlas: carAtlas,
+    iconAtlas: vehicleAtlas,
     iconMapping: ICON_MAPPING,
-    // Stable per-slot car variant so the fleet looks varied.
-    getIcon: (d: VehicleDatum) => CAR_NAMES[d.slotIdx % CAR_NAMES.length]!,
+    // Stable per-slot variant so the fleet looks varied across all 50 types.
+    getIcon: (d: VehicleDatum) => VEHICLE_NAMES[d.slotIdx % VEHICLE_NAMES.length]!,
     // Icon height = one car length, the same value the sim uses for car-following
     // gaps, so on-map spacing matches the model. Clamp to visible pixels at any zoom.
     sizeUnits: 'meters',
@@ -73,7 +122,7 @@ export function buildVehicleLayer({ views, snapshot, alpha, layerId }: BuildArgs
       return [lon, lat];
     },
     // heading is radians CCW from east; sprites point up (north), so subtract 90°
-    // to align the car's nose with its travel direction. Interpolate along the
+    // to align the vehicle's nose with its travel direction. Interpolate along the
     // shortest arc so turns rotate smoothly.
     getAngle: (d: VehicleDatum) => {
       const i = d.slotIdx;

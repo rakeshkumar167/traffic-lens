@@ -28,6 +28,7 @@ export function Navbar({ regionKey, onRegionChange, showReset, onReset, onHelp }
         {showReset && (
           <button onClick={onReset} style={btn}>Reset region</button>
         )}
+        <a href="#sprite-preview" target="_blank" rel="noopener noreferrer" style={spriteLink} title="Vehicle sprite preview">Sprites</a>
         <button onClick={onHelp} style={helpBtn} aria-label="Help" title="Help">?</button>
         <a
           href="https://www.openstreetmap.org/copyright"
@@ -57,6 +58,12 @@ const btn: React.CSSProperties = {
 const select: React.CSSProperties = {
   padding: '5px 8px', background: '#1f2934', color: '#e8eef5',
   border: '1px solid #2a3340', borderRadius: 4, cursor: 'pointer', fontSize: 13,
+};
+
+const spriteLink: React.CSSProperties = {
+  padding: '5px 10px', background: '#1f2934', color: '#8b949e',
+  border: '1px solid #2a3340', borderRadius: 4, cursor: 'pointer', fontSize: 12,
+  textDecoration: 'none',
 };
 
 const helpBtn: React.CSSProperties = {
