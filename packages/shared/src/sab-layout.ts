@@ -15,6 +15,7 @@ export const VEHICLE_TYPE_CAR = 0;
 
 // Internal: field byte sizes. Each field block is MAX_VEHICLES * elementSize,
 // rounded up to 8 bytes so the following Float64-or-larger view is aligned.
+const F64_SIZE = 8;
 const F32_SIZE = 4;
 const U32_SIZE = 4;
 const U16_SIZE = 2;
@@ -34,8 +35,11 @@ function padTo8(n: number): number {
 const CONTROL_BYTES = 32;
 
 // Per-vehicle field block byte sizes (each padded to 8B alignment).
-const POS_X_BYTES        = padTo8(MAX_VEHICLES * F32_SIZE);
-const POS_Y_BYTES        = padTo8(MAX_VEHICLES * F32_SIZE);
+// posX/posY are Float64: vehicle geometry is absolute Web Mercator world metres
+// (~8.6e6 in Bangalore), where Float32 only resolves ~1 m, quantizing positions
+// into a visible staircase. The other fields are local-magnitude and fit in F32.
+const POS_X_BYTES        = padTo8(MAX_VEHICLES * F64_SIZE);
+const POS_Y_BYTES        = padTo8(MAX_VEHICLES * F64_SIZE);
 const HEADING_BYTES      = padTo8(MAX_VEHICLES * F32_SIZE);
 const SPEED_BYTES        = padTo8(MAX_VEHICLES * F32_SIZE);
 const ACCEL_BYTES        = padTo8(MAX_VEHICLES * F32_SIZE);
@@ -72,8 +76,8 @@ export interface SabControlViews {
 
 export interface SabViews {
   readonly control: SabControlViews;
-  readonly posX: Float32Array;
-  readonly posY: Float32Array;
+  readonly posX: Float64Array;
+  readonly posY: Float64Array;
   readonly heading: Float32Array;
   readonly speed: Float32Array;
   readonly accel: Float32Array;
@@ -92,8 +96,8 @@ export function createSabViews(sab: SharedArrayBuffer): SabViews {
       simWallClockSec: new Float64Array(sab, 8, 1),
       activeSnapshotIdx: new Uint32Array(sab, 16, 1),
     },
-    posX: new Float32Array(sab, POS_X_OFFSET, MAX_VEHICLES),
-    posY: new Float32Array(sab, POS_Y_OFFSET, MAX_VEHICLES),
+    posX: new Float64Array(sab, POS_X_OFFSET, MAX_VEHICLES),
+    posY: new Float64Array(sab, POS_Y_OFFSET, MAX_VEHICLES),
     heading: new Float32Array(sab, HEADING_OFFSET, MAX_VEHICLES),
     speed: new Float32Array(sab, SPEED_OFFSET, MAX_VEHICLES),
     accel: new Float32Array(sab, ACCEL_OFFSET, MAX_VEHICLES),

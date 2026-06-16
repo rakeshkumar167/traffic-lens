@@ -6,11 +6,13 @@ export interface InterpSnapshot {
   // Positions/headings captured at the previous and current observed sim ticks.
   // Rendering lerps prev → cur over the wall-clock interval between them, which
   // smooths motion regardless of (and lagging by one tick behind) the sim.
-  prevX: Float32Array;
-  prevY: Float32Array;
+  // posX/posY are Float64 to match the SAB: absolute Web Mercator world metres
+  // need more than Float32's ~1 m resolution at Bangalore magnitudes.
+  prevX: Float64Array;
+  prevY: Float64Array;
   prevHeading: Float32Array;
-  curX: Float32Array;
-  curY: Float32Array;
+  curX: Float64Array;
+  curY: Float64Array;
   curHeading: Float32Array;
   tickNumber: number;
   capturedAtMs: number;
@@ -19,11 +21,11 @@ export interface InterpSnapshot {
 
 export function createSnapshot(): InterpSnapshot {
   return {
-    prevX: new Float32Array(MAX_VEHICLES),
-    prevY: new Float32Array(MAX_VEHICLES),
+    prevX: new Float64Array(MAX_VEHICLES),
+    prevY: new Float64Array(MAX_VEHICLES),
     prevHeading: new Float32Array(MAX_VEHICLES),
-    curX: new Float32Array(MAX_VEHICLES),
-    curY: new Float32Array(MAX_VEHICLES),
+    curX: new Float64Array(MAX_VEHICLES),
+    curY: new Float64Array(MAX_VEHICLES),
     curHeading: new Float32Array(MAX_VEHICLES),
     tickNumber: -1,
     capturedAtMs: 0,

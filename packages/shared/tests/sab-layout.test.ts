@@ -71,6 +71,21 @@ describe('sab-layout', () => {
     expect(v.posY[MAX_VEHICLES - 1]).toBe(0);
   });
 
+  it('preserves sub-decimetre precision for Web Mercator positions at Bangalore magnitude', () => {
+    // Bangalore Web Mercator world metres are ~8.64e6 (X) / ~1.46e6 (Y). Float32
+    // can only resolve ~1 m in X / 0.125 m in Y there, quantizing positions into a
+    // visible staircase. posX/posY must be wide enough to round-trip these to well
+    // under a decimetre, otherwise vehicles wiggle when zoomed in.
+    const sab = new SharedArrayBuffer(computeSabByteLength());
+    const v = createSabViews(sab);
+    const x = 8643579.350439847;
+    const y = 1457280.1548616164;
+    v.posX[0] = x;
+    v.posY[0] = y;
+    expect(Math.abs(v.posX[0]! - x)).toBeLessThan(0.001);
+    expect(Math.abs(v.posY[0]! - y)).toBeLessThan(0.001);
+  });
+
   it('control region is at the start of the SAB and survives view round-trip', () => {
     const sab = new SharedArrayBuffer(computeSabByteLength());
     const a = createSabViews(sab);
