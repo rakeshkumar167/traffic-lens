@@ -19,6 +19,8 @@ const APPROACH_LOOKBACK_M = 15;        // average approach direction over this r
 // arrow points along the approach's travel direction.
 const W = 36;
 const H = 120;
+const WIDTH_SCALE = 1.5;     // head is 50% wider than the base portrait box
+const SW = W * WIDTH_SCALE;   // scaled source width
 const ARROW_OFF = '#2b2f37';
 const RED_OFF = '#3a1010';
 
@@ -26,21 +28,30 @@ function svgUrl(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 function head(arrowColor: string, redColor: string): string {
-  const cx = W / 2;
+  const cx = W / 2;            // arrow centre in the pre-scale coordinate space
   const pl = (pts: string): string =>
     `<polyline points='${pts}' fill='none' stroke='${arrowColor}' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>`;
   const up = (cy: number): string => pl(`${cx},${cy + 8} ${cx},${cy - 8}`) + pl(`${cx - 6},${cy - 2} ${cx},${cy - 8} ${cx + 6},${cy - 2}`);
-  const left = (cy: number): string => pl(`${cx + 8},${cy} ${cx - 8},${cy}`) + pl(`${cx - 2},${cy - 6} ${cx - 8},${cy} ${cx - 2},${cy + 6}`);
+  const down = (cy: number): string => pl(`${cx},${cy - 8} ${cx},${cy + 8}`) + pl(`${cx - 6},${cy + 2} ${cx},${cy + 8} ${cx + 6},${cy + 2}`);
   const right = (cy: number): string => pl(`${cx - 8},${cy} ${cx + 8},${cy}`) + pl(`${cx + 2},${cy - 6} ${cx + 8},${cy} ${cx + 2},${cy + 6}`);
+  // The box + arrows are drawn in the base W-wide space and stretched 50%
+  // horizontally; the lamp is drawn after, at the widened centre, so it stays a
+  // true circle rather than an ellipse.
   return svgUrl(
-    `<svg xmlns='http://www.w3.org/2000/svg' width='${W}' height='${H}' viewBox='0 0 ${W} ${H}'>`
+    `<svg xmlns='http://www.w3.org/2000/svg' width='${SW}' height='${H}' viewBox='0 0 ${SW} ${H}'>`
+    + `<g transform='scale(${WIDTH_SCALE} 1)'>`
     + `<rect x='1' y='1' width='${W - 2}' height='${H - 2}' rx='9' fill='#0d0d14' stroke='#000' stroke-width='2'/>`
-    + up(26) + left(54) + right(82) + `<circle cx='${cx}' cy='104' r='8' fill='${redColor}'/>`
+    // Source glyphs are stacked top→bottom; after the head's 90° rotation they
+    // read left→forward→right of travel: image-up shows as left-of-travel,
+    // image-right as forward, image-down as right-of-travel.
+    + up(26) + right(54) + down(82)
+    + `</g>`
+    + `<circle cx='${SW / 2}' cy='104' r='8' fill='${redColor}'/>`
     + `</svg>`,
   );
 }
 function iconDef(arrowColor: string, redColor: string) {
-  return { url: head(arrowColor, redColor), width: W, height: H, anchorX: W / 2, anchorY: H / 2, mask: false };
+  return { url: head(arrowColor, redColor), width: SW, height: H, anchorX: SW / 2, anchorY: H / 2, mask: false };
 }
 const ICON_BY_STATE: Record<SignalColor, ReturnType<typeof iconDef>> = {
   green: iconDef('#00C853', RED_OFF),
@@ -293,9 +304,11 @@ export function buildSignalLayers(
       data: data.markers,
       getIcon: (m) => ICON_BY_STATE[stateOf(m)],
       getPosition: (m) => m.position,
-      // Up (straight arrow) points along the approach's travel direction, so the
-      // portrait box stands along the road.
-      getAngle: (m) => (m.heading * 180) / Math.PI - 90,
+      // Base alignment is "up (straight arrow) = travel direction" (heading − 90).
+      // We then rotate the head a further 90° anticlockwise (deck.gl getAngle is
+      // CCW), swinging its bottom edge round to the right edge; the −90 and +90
+      // cancel, leaving the raw heading.
+      getAngle: (m) => (m.heading * 180) / Math.PI,
       sizeUnits: 'meters',
       getSize: 7,
       sizeMinPixels: 14,
