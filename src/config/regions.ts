@@ -26,6 +26,12 @@ export const REGIONS: readonly Region[] = [
   { key: 'jp-nagar', label: 'JP Nagar', file: 'jp-nagar.graph.json' },
   { key: 'banashankari', label: 'Banashankari', file: 'banashankari.graph.json' },
   { key: 'domlur', label: 'Domlur', file: 'domlur.graph.json' },
+  // Outer Ring Road — eastern IT-corridor arc (Silk Board -> Hebbal).
+  { key: 'central-silk-board', label: 'Central Silk Board (ORR)', file: 'central-silk-board.graph.json' },
+  { key: 'agara', label: 'Agara (ORR)', file: 'agara.graph.json' },
+  { key: 'mahadevapura', label: 'Mahadevapura (ORR)', file: 'mahadevapura.graph.json' },
+  { key: 'hennur', label: 'Hennur (ORR)', file: 'hennur.graph.json' },
+  { key: 'nagawara', label: 'Nagawara (ORR)', file: 'nagawara.graph.json' },
 ];
 
 export const DEFAULT_REGION = REGIONS[0]!;

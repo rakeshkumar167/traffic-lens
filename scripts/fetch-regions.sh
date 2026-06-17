@@ -26,6 +26,13 @@ AREAS=(
   "jp-nagar|77.575,12.895,77.600,12.915"
   "banashankari|77.540,12.910,77.565,12.935"
   "domlur|77.630,12.955,77.650,12.975"
+  # Outer Ring Road — eastern IT-corridor arc (Silk Board -> Hebbal). Fills the
+  # gaps between the already-present Bellandur/Marathahalli/KR Puram/Hebbal boxes.
+  "central-silk-board|77.612,12.907,77.637,12.927"
+  "agara|77.632,12.915,77.657,12.935"
+  "mahadevapura|77.675,12.982,77.700,13.002"
+  "hennur|77.630,13.018,77.655,13.038"
+  "nagawara|77.615,13.033,77.640,13.053"
 )
 
 fetch_area() {
